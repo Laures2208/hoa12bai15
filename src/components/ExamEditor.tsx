@@ -100,6 +100,29 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
     setTempQuestion({ ...q });
   };
 
+  const handleAddQuestion = (type: QuestionType) => {
+    const newId = Date.now().toString();
+    const newQuestion: Question = {
+      id: newId,
+      type,
+      content: '',
+      explanation: '',
+      answer: '',
+      options: type === 'multiple_choice' ? ['', '', '', ''] : undefined,
+      subQuestions: type === 'true_false' ? [
+        { id: 'a', content: '', answer: 'Đúng' },
+        { id: 'b', content: '', answer: 'Đúng' },
+        { id: 'c', content: '', answer: 'Đúng' },
+        { id: 'd', content: '', answer: 'Đúng' }
+      ] : undefined
+    };
+    
+    const newQuestions = [...questions, newQuestion];
+    onUpdate(newQuestions, tempSectionPoints);
+    setEditingId(newId);
+    setTempQuestion(newQuestion);
+  };
+
   const handleSave = () => {
     if (tempQuestion) {
       const newQuestions = questions.map(q => q.id === tempQuestion.id ? tempQuestion : q);
@@ -560,6 +583,30 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
             )}
           </motion.div>
         ))}
+      </div>
+
+      <div className="flex flex-wrap gap-4 mt-8 pt-8 border-t border-slate-800/50">
+        <button
+          onClick={() => handleAddQuestion('multiple_choice')}
+          className="flex items-center gap-2 px-6 py-3 bg-teal-500/10 text-teal-400 border border-teal-500/30 rounded-2xl hover:bg-teal-500 hover:text-white transition-all font-bold text-sm"
+        >
+          <Plus className="w-5 h-5" />
+          Thêm câu Trắc nghiệm
+        </button>
+        <button
+          onClick={() => handleAddQuestion('true_false')}
+          className="flex items-center gap-2 px-6 py-3 bg-purple-500/10 text-purple-400 border border-purple-500/30 rounded-2xl hover:bg-purple-500 hover:text-white transition-all font-bold text-sm"
+        >
+          <Plus className="w-5 h-5" />
+          Thêm câu Đúng/Sai
+        </button>
+        <button
+          onClick={() => handleAddQuestion('short_answer')}
+          className="flex items-center gap-2 px-6 py-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-2xl hover:bg-emerald-500 hover:text-white transition-all font-bold text-sm"
+        >
+          <Plus className="w-5 h-5" />
+          Thêm câu Trả lời ngắn
+        </button>
       </div>
     </div>
   );
