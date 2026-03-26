@@ -1,0 +1,244 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+@theme {
+  --color-teal-glow: #2dd4bf;
+  --color-dark-bg: #0f172a;
+  --color-dark-card: #1e293b;
+}
+
+body {
+  @apply bg-dark-bg text-slate-200 antialiased;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.teal-glow {
+  text-shadow: 0 0 10px rgba(45, 212, 191, 0.5);
+}
+
+.teal-border-glow {
+  box-shadow: 0 0 15px rgba(45, 212, 191, 0.2);
+}
+
+.katex {
+  font-size: 1.1em;
+}@import "katex/dist/katex.min.css";
+
+@theme {
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-400: #2dd4bf;
+  --color-teal-900: #134e4a;
+  
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  :root {
+    --bg-main: #0a0f14;
+    --text-main: #e2e8f0;
+    --card-bg: rgba(15, 23, 42, 0.5);
+    --card-border: rgba(20, 184, 166, 0.2);
+  }
+
+  .dark {
+    --bg-main: #0a0f14;
+    --text-main: #e2e8f0;
+    --card-bg: rgba(15, 23, 42, 0.5);
+    --card-border: rgba(20, 184, 166, 0.2);
+  }
+
+  body {
+    @apply bg-[var(--bg-main)] text-[var(--text-main)] font-sans selection:bg-teal-500/30 transition-colors duration-300;
+  }
+
+  /* Force dark mode colors */
+  .bg-white { background-color: #0f172a !important; }
+  .bg-slate-50 { background-color: #020617 !important; }
+  .bg-slate-100 { background-color: #1e293b !important; }
+  .bg-slate-200 { background-color: #334155 !important; }
+  .border-slate-200 { border-color: #1e293b !important; }
+  .text-slate-900 { color: #ffffff !important; }
+  .text-slate-600 { color: #cbd5e1 !important; }
+  .text-slate-500 { color: #94a3b8 !important; }
+
+  /* Force dark mode for specific sections */
+  div#root:nth-of-type(2) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(3),
+  div#root:nth-of-type(2) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1),
+  div#root:nth-of-type(2) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) {
+    background: #0a0f14 !important;
+    background-image: none !important;
+    color: #ffffff !important;
+  }
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  @apply font-bold text-teal-600 dark:text-teal-400 mt-4 mb-2;
+}
+
+.markdown-body p {
+  @apply mb-4 leading-relaxed text-slate-700 dark:text-slate-300;
+}
+
+.markdown-body ul {
+  @apply list-disc pl-5 mb-4 text-slate-700 dark:text-slate-300;
+}
+
+.markdown-body code {
+  @apply bg-slate-100 dark:bg-slate-800 px-1 rounded text-teal-700 dark:text-teal-300;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-[#0a0f14];
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-teal-900/50 rounded-full hover:bg-teal-800/50 transition-colors;
+}
+
+/* Hide Google Translate UI */
+body {
+  top: 0 !important;
+}
+.skiptranslate {
+  display: none !important;
+}
+.goog-te-banner-frame {
+  display: none !important;
+}
+.goog-tooltip {
+  display: none !important;
+}
+.goog-tooltip:hover {
+  display: none !important;
+}
+.goog-text-highlight {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Animations for Recycling Steps */
+@keyframes shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  25% { transform: translateX(-2px) rotate(-5deg); }
+  50% { transform: translateX(2px) rotate(5deg); }
+  75% { transform: translateX(-2px) rotate(-5deg); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(249, 115, 22, 0.5), 0 0 10px rgba(249, 115, 22, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(249, 115, 22, 0.8), 0 0 20px rgba(249, 115, 22, 0.5); }
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; filter: brightness(1.2); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 1.5s ease-in-out infinite;
+}
+
+.animate-sparkle {
+  animation: sparkle 1s ease-in-out infinite;
+}
+
+/* Crystallization Title Effect */
+.text-gradient-crystallize {
+  background: linear-gradient(to right, #14b8a6, #ffffff, #10b981, #14b8a6);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shine 4s linear infinite;
+}
+@keyframes shine {
+  to {
+    background-position: 200% center;
+  }
+}
+
+.glow-sparkle {
+  text-shadow: 0 0 10px rgba(20, 184, 166, 0.3), 0 0 20px rgba(20, 184, 166, 0.1);
+  animation: pulse-glow 3s ease-in-out infinite alternate;
+}
+@keyframes pulse-glow {
+  from { text-shadow: 0 0 10px rgba(20, 184, 166, 0.3), 0 0 20px rgba(20, 184, 166, 0.1); }
+  to { text-shadow: 0 0 15px rgba(255, 255, 255, 0.6), 0 0 30px rgba(20, 184, 166, 0.4); }
+}
+
+/* Energy Nav Effect */
+.nav-energy-btn {
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+.nav-energy-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.4) 0%, rgba(20, 184, 166, 0) 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease-out, height 0.4s ease-out, opacity 0.4s ease-out;
+  opacity: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.nav-energy-btn:hover::after {
+  width: 150px;
+  height: 150px;
+  opacity: 1;
+  animation: energy-pulse 1.5s infinite;
+}
+@keyframes energy-pulse {
+  0% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.8; }
+  50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.4; }
+  100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.8; }
+}
+
+/* Chemical Equation Animation */
+.ion-glow {
+  animation: ion-pulse 2s infinite alternate ease-in-out;
+  display: inline-block;
+}
+@keyframes ion-pulse {
+  from { filter: drop-shadow(0 0 2px rgba(20, 184, 166, 0.4)); transform: scale(1); }
+  to { filter: drop-shadow(0 0 8px rgba(20, 184, 166, 0.8)); transform: scale(1.05); }
+}
+
+.electron-move {
+  display: inline-block;
+  animation: electron-fly 3s infinite ease-in-out;
+  color: #fbbf24; /* amber-400 */
+  filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.8));
+}
+@keyframes electron-fly {
+  0% { transform: translateX(30px) translateY(-10px) scale(0.5); opacity: 0; }
+  20% { opacity: 1; }
+  80% { transform: translateX(-5px) translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateX(-10px) translateY(0) scale(1.2); opacity: 0; }
+}
+
+.metal-crystallize {
+  display: inline-block;
+  animation: metal-form 3s infinite ease-in-out;
+}
+@keyframes metal-form {
+  0%, 70% { opacity: 0.3; filter: brightness(0.5) blur(2px); transform: scale(0.9); }
+  85% { opacity: 1; filter: brightness(1.5) blur(0px); transform: scale(1.1); }
+  100% { opacity: 1; filter: brightness(1) blur(0px); transform: scale(1); }
+}

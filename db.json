@@ -1,0 +1,38 @@
+{
+  "questions": [
+    {
+      "id": "1",
+      "content": "Trong phương pháp nhiệt luyện, chất nào sau đây thường được dùng để khử các oxit kim loại như $Fe_2O_3$, $CuO$ ở nhiệt độ cao?",
+      "type": "theory",
+      "options": ["$CO$", "$H_2O$", "$CO_2$", "$O_2$"],
+      "correctAnswer": 0,
+      "explanation": "Các chất khử phổ biến trong nhiệt luyện là $C, CO, H_2, Al$."
+    },
+    {
+      "id": "2",
+      "content": "Để điều chế kim loại kiềm (như $Na, K$) và kim loại kiềm thổ (như $Mg, Ca$), phương pháp duy nhất có thể sử dụng là:",
+      "type": "theory",
+      "options": ["Nhiệt luyện", "Thủy luyện", "Điện phân nóng chảy", "Điện phân dung dịch"],
+      "correctAnswer": 2,
+      "explanation": "Kim loại mạnh (kiềm, kiềm thổ, Al) phải dùng điện phân nóng chảy."
+    },
+    {
+      "id": "3",
+      "content": "Khử hoàn toàn $m$ gam $Fe_2O_3$ bằng khí $CO$ dư ở nhiệt độ cao, thu được 11,2 gam sắt. Giá trị của $m$ là: (Cho Fe=56, O=16)",
+      "type": "exercise",
+      "options": ["16,0", "24,0", "32,0", "8,0"],
+      "correctAnswer": 0,
+      "explanation": "$n_{Fe} = 11,2 / 56 = 0,2$ mol. Bảo toàn Fe: $n_{Fe_2O_3} = 0,1$ mol. $m = 0,1 \times 160 = 16$ gam."
+    },
+    {
+      "id": "4",
+      "content": "Nhúng một thanh sắt (Fe) vào dung dịch $CuSO_4$. Sau một thời gian, khối lượng thanh sắt tăng thêm 0,8 gam. Khối lượng Cu bám vào thanh sắt là: (Cho Fe=56, Cu=64)",
+      "type": "exercise",
+      "options": ["6,4 gam", "5,6 gam", "0,8 gam", "1,2 gam"],
+      "correctAnswer": 0,
+      "explanation": "Gọi $n_{Fe}$ phản ứng là $x$. Độ tăng: $64x - 56x = 8x = 0,8 \Rightarrow x = 0,1$. $m_{Cu} = 0,1 \times 64 = 6,4$ gam."
+    }
+  ],
+  "leaderboard_22": [],
+  "leaderboard_45": []
+}

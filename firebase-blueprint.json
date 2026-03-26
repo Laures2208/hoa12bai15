@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "Exam": {
+      "title": "Exam",
+      "description": "A collection of questions forming an exam.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the exam." },
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["multiple_choice", "true_false", "short_answer"] },
+              "content": { "type": "string", "description": "Markdown content of the question." },
+              "options": { "type": "array", "items": { "type": "string" } },
+              "imageUrl": { "type": "string", "description": "Base64 encoded image or URL." },
+              "answer": { "type": "string" },
+              "subQuestions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "content": { "type": "string" },
+                    "answer": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "timeLimit": { "type": "integer", "description": "Time limit in minutes." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "questions"]
+    },
+    "StudentSession": {
+      "title": "StudentSession",
+      "description": "Tracks a student's access status to the lab.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "studentClass": { "type": "string" },
+        "status": { "type": "string", "enum": ["unregistered", "waiting", "approved", "blocked"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/exams_bank/{examId}": {
+      "schema": "Exam",
+      "description": "Bank of all created exams."
+    },
+    "/student_sessions/{sessionId}": {
+      "schema": "StudentSession",
+      "description": "Student registration and access status."
+    }
+  }
+}
