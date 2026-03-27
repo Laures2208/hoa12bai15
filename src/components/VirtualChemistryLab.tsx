@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { fixLatex } from '../utils/latexHelper';
 
 import { ScrollReveal } from '../App';
 
@@ -631,7 +632,7 @@ export const VirtualChemistryLab = () => {
                       subA === chem.id ? "bg-teal-500/20 border-teal-500 text-teal-700 dark:text-teal-300" : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-500"
                     )}
                   >
-                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{chem.formula}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(chem.formula)}</ReactMarkdown>
                   </div>
                 ))}
               </div>
@@ -652,7 +653,7 @@ export const VirtualChemistryLab = () => {
                       subB === chem.id ? "bg-teal-500/20 border-teal-500 text-teal-700 dark:text-teal-300" : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-500"
                     )}
                   >
-                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{chem.formula}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(chem.formula)}</ReactMarkdown>
                   </div>
                 ))}
               </div>
@@ -750,7 +751,7 @@ export const VirtualChemistryLab = () => {
                   <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 flex justify-center">
                     <div className="text-2xl text-teal-600 dark:text-teal-400 font-math">
                       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                        {result.equation}
+                        {fixLatex(result.equation)}
                       </ReactMarkdown>
                     </div>
                   </div>
@@ -767,7 +768,7 @@ export const VirtualChemistryLab = () => {
                             style={{ backgroundColor: p.chemical.color, opacity: p.chemical.visualProps.opacity }}
                           >
                             <div className="text-xs font-bold text-black dark:text-white">
-                              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{p.chemical.formula}</ReactMarkdown>
+                              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(p.chemical.formula)}</ReactMarkdown>
                             </div>
                           </div>
                           <div>

@@ -58,6 +58,7 @@ import 'katex/dist/katex.min.css';
 import { cn } from './lib/utils';
 import { GatewayPage } from './components/GatewayPage';
 import { ProfileModal } from './components/ProfileModal';
+import { fixLatex } from './utils/latexHelper';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Gatekeeper } from './components/Gatekeeper';
@@ -1253,7 +1254,7 @@ const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 
                         }
                       }}
                     >
-                      {(q.content || q.text || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, '')}
+                      {fixLatex((q.content || q.text || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, ''))}
                     </ReactMarkdown>
                   </div>
                 </div>
@@ -1276,7 +1277,7 @@ const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 
                         >
                           <div className="text-base">
                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                              {opt.text}
+                              {fixLatex(opt.text)}
                             </ReactMarkdown>
                           </div>
                           {showAnswers && isCorrect && <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />}
@@ -1297,7 +1298,7 @@ const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 
                           <div className="text-base font-medium text-slate-800 dark:text-slate-100 flex-1">
                             <span className="text-teal-500 font-bold mr-2">{String.fromCharCode(97 + i)})</span>
                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                              {sq.content || sq.text || ''}
+                              {fixLatex(sq.content || sq.text || '')}
                             </ReactMarkdown>
                           </div>
                           <div className="flex items-center gap-4">
@@ -1344,7 +1345,7 @@ const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 
                     </div>
                     <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
                       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                        {q.explanation || q.insight}
+                        {fixLatex(q.explanation || q.insight || '')}
                       </ReactMarkdown>
                     </div>
                   </div>
@@ -1453,7 +1454,7 @@ const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 
                   }
                 }}
               >
-                {(preparedQuestions[currentStep].content || preparedQuestions[currentStep].text || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, '')}
+                {fixLatex((preparedQuestions[currentStep].content || preparedQuestions[currentStep].text || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, ''))}
               </ReactMarkdown>
             </div>
 
@@ -1471,7 +1472,7 @@ const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 
                 >
                   <div className="font-medium text-base">
                     <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                      {option.text}
+                      {fixLatex(option.text)}
                     </ReactMarkdown>
                   </div>
                   <div className={cn(
@@ -1492,7 +1493,7 @@ const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 
                         <div className="text-base font-medium text-slate-800 dark:text-slate-100 flex-1">
                           <span className="text-teal-500 font-bold mr-2">{String.fromCharCode(97 + i)})</span>
                           <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                            {sq.content || sq.text || ''}
+                            {fixLatex(sq.content || sq.text || '')}
                           </ReactMarkdown>
                         </div>
                         <div className="flex bg-slate-200 dark:bg-slate-900 p-1 rounded-xl">
@@ -2139,7 +2140,7 @@ const AdminPortal = () => {
                                           }
                                         }}
                                       >
-                                        {(question.content || question.text || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, '')}
+                                        {fixLatex((question.content || question.text || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, ''))}
                                       </ReactMarkdown>
                                     </div>
                                     
@@ -2149,14 +2150,14 @@ const AdminPortal = () => {
                                           <p className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
                                             <span className="font-bold">Đã chọn:</span> 
                                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                              {question.options?.[ans.selectedOriginalIndex] || '---'}
+                                              {fixLatex(question.options?.[ans.selectedOriginalIndex] || '---')}
                                             </ReactMarkdown>
                                           </p>
                                           {!ans.isCorrect && (
                                             <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                               <span className="font-bold">Đáp án đúng:</span>
                                               <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                                {question.options?.[question.answer?.charCodeAt(0) - 65] || '---'}
+                                                {fixLatex(question.options?.[question.answer?.charCodeAt(0) - 65] || '---')}
                                               </ReactMarkdown>
                                             </p>
                                           )}
@@ -2514,7 +2515,7 @@ const PracticeExercises = () => {
                 </div>
                 <div className="text-lg font-medium text-slate-900 dark:text-white pr-8">
                   <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                    {exercise.question}
+                    {fixLatex(exercise.question || '')}
                   </ReactMarkdown>
                 </div>
               </div>
@@ -2538,7 +2539,7 @@ const PracticeExercises = () => {
                   <div className="px-6 pb-6 pt-2 ml-12">
                     <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-xl text-slate-700 dark:text-slate-300 prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-100 dark:prose-pre:bg-slate-900">
                       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                        {exercise.answer}
+                        {fixLatex(exercise.answer || '')}
                       </ReactMarkdown>
                     </div>
                   </div>

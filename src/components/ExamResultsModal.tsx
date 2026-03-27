@@ -7,6 +7,7 @@ import { Question } from './ExamRoom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { fixLatex } from '../utils/latexHelper';
 
 interface ExamResultsModalProps {
   examId: string;
@@ -324,7 +325,7 @@ export const ExamResultsModal: React.FC<ExamResultsModalProps> = ({ examId, exam
                                                   }
                                                 }}
                                       >
-                                        {(q.content || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, '')}
+                                        {fixLatex((q.content || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, ''))}
                                       </ReactMarkdown>
                                     </div>
                                     

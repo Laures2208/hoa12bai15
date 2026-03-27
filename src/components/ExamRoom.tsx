@@ -10,6 +10,7 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { AdvancedWordProcessor } from './AdvancedWordProcessor';
 import { removeUndefined } from '../utils/jsonHelper';
+import { fixLatex } from '../utils/latexHelper';
 
 export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
 
@@ -630,7 +631,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                                         }
                                       }}
                                     >
-                                      {(q.content || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, '')}
+                                      {fixLatex((q.content || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, ''))}
                                     </ReactMarkdown>
                                   </div>
                                   {q.type === 'true_false' ? (
@@ -639,7 +640,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                                         <div key={sq.id || sIdx} className="text-xs bg-slate-900/50 p-2 rounded-lg flex justify-between items-center gap-2">
                                           <div className="text-slate-300 flex-1">
                                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                              {`${String.fromCharCode(97 + sIdx)}. ${sq.content || (sq as any).text || ''}`}
+                                              {fixLatex(`${String.fromCharCode(97 + sIdx)}. ${sq.content || (sq as any).text || ''}`)}
                                             </ReactMarkdown>
                                           </div>
                                           <span className={cn(
@@ -656,7 +657,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                                       {q.options?.map((opt, oIdx) => (
                                         <div key={oIdx} className="text-xs text-slate-400 bg-slate-900/50 p-2 rounded-lg">
                                           <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                            {opt}
+                                            {fixLatex(opt)}
                                           </ReactMarkdown>
                                         </div>
                                       ))}
@@ -735,12 +736,12 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                   <div>
                     <h3 className="text-xl font-bold text-white group-hover:text-teal-400 transition-colors">
                       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                        {exam.title}
+                        {fixLatex(exam.title)}
                       </ReactMarkdown>
                     </h3>
                     <div className="text-slate-400 text-sm mt-1 line-clamp-2 prose prose-invert prose-sm max-w-none">
                       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                        {exam.description}
+                        {fixLatex(exam.description || '')}
                       </ReactMarkdown>
                     </div>
                   </div>

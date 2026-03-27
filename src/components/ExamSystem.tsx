@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { fixLatex } from '../utils/latexHelper';
 import { cn } from '../lib/utils';
 
 interface Question {
@@ -235,7 +236,7 @@ export const ExamSystem = () => {
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 mb-6 flex-1 shadow-xl">
               <div className="mb-8 text-xl leading-relaxed text-white">
                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                  {questions[currentStep].content}
+                  {fixLatex(questions[currentStep].content)}
                 </ReactMarkdown>
               </div>
 

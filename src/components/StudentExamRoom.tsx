@@ -10,6 +10,7 @@ import rehypeKatex from 'rehype-katex';
 import { cn } from '../lib/utils';
 import 'katex/dist/katex.min.css';
 import { ParticleBackground } from './ParticleBackground';
+import { fixLatex } from '../utils/latexHelper';
 
 interface Question {
   id: string;
@@ -282,7 +283,7 @@ export const StudentExamRoom: React.FC = () => {
                   }
                 }}
               >
-                {currentQuestion.content.replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, '')}
+                {fixLatex(currentQuestion.content.replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, ''))}
               </Markdown>
             </div>
 
@@ -315,7 +316,7 @@ export const StudentExamRoom: React.FC = () => {
                         </div>
                         <div className="flex-1 pt-1 text-slate-200">
                           <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                            {option.replace(/^[A-D]\.\s*/, '')}
+                            {fixLatex(option.replace(/^[A-D]\.\s*/, ''))}
                           </Markdown>
                         </div>
                       </button>
@@ -336,7 +337,7 @@ export const StudentExamRoom: React.FC = () => {
                           <span className="font-bold text-teal-400 mt-1">{subLabel}.</span>
                           <div className="text-slate-100 flex-1">
                             <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                              {sub.content || (sub as any).text || ''}
+                              {fixLatex(sub.content || (sub as any).text || '')}
                             </Markdown>
                           </div>
                         </div>

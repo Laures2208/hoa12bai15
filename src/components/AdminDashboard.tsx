@@ -226,7 +226,7 @@ export const AdminDashboard: React.FC = () => {
                 - Phần III: ${matrix.shortAnswer} câu trả lời ngắn (kết quả là số).
 
                 Yêu cầu:
-                1. Toàn bộ công thức hóa học phải được bọc trong LaTeX chuẩn (ví dụ: $H_2SO_4$, $\\ce{H2SO4}$).
+                1. Toàn bộ công thức hóa học phải được bọc trong LaTeX chuẩn. BẮT BUỘC sử dụng ngoặc nhọn cho lệnh \\ce (ví dụ: $\\ce{H2SO4}$, $\\ce{CO2}$). TUYỆT ĐỐI KHÔNG viết liền như $\\ceH2SO4$ hoặc $\\ceCO2$.
                 QUAN TRỌNG: Bạn PHẢI escape tất cả các dấu backslash (\\) trong công thức LaTeX thành double backslash (\\\\) để JSON hợp lệ. Ví dụ: \\\\frac{1}{2} thay vì \\frac{1}{2}, \\\\ce{H2O} thay vì \\ce{H2O}.
                 2. Nội dung bám sát chương trình Hóa 12 (Este, Lipit, Cacbohidrat, Amin, Amino axit, Polime, Kim loại...).
                 3. Xuất kết quả dưới dạng mảng JSON thuần túy, không có markdown bao quanh, với cấu trúc:

@@ -10,6 +10,7 @@ import { getGeminiApiKey } from '../services/gemini';
 import { Question, QuestionType } from './ExamRoom';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { storage, auth } from '../firebase';
+import { fixLatex } from '../utils/latexHelper';
 
 interface ExamEditorProps {
   questions: Question[];
@@ -156,6 +157,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                 text: `Bạn là một chuyên gia Hóa học. Tôi đã thay đổi nội dung câu hỏi sau. Hãy tính toán lại đáp án và lời giải chi tiết dựa trên các thông số mới.
                 Đảm bảo các công thức hóa học được bọc trong LaTeX chuẩn (ví dụ: $H_2SO_4$, $\\ce{H2SO4}$).
                 QUAN TRỌNG: Bạn PHẢI escape tất cả các dấu backslash (\\) trong công thức LaTeX thành double backslash (\\\\) để JSON hợp lệ. Ví dụ: \\\\frac{1}{2} thay vì \\frac{1}{2}, \\\\ce{H2O} thay vì \\ce{H2O}.
+                LƯU Ý QUAN TRỌNG VỀ CÔNG THỨC HÓA HỌC: Khi sử dụng lệnh \\\\ce cho công thức hóa học, BẠN BẮT BUỘC PHẢI BAO GỒM DẤU NGOẶC NHỌN {} bao quanh công thức. Ví dụ ĐÚNG: \\\\ce{H2O}, \\\\ce{CO2}. Ví dụ SAI: \\\\ceH2O, \\\\ceCO2. Việc thiếu dấu ngoặc nhọn sẽ làm lỗi hiển thị.
                 
                 Câu hỏi hiện tại:
                 ${JSON.stringify(q)}
@@ -483,7 +485,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                           }
                         }}
                       >
-                        {(q.content || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, '')}
+                        {fixLatex((q.content || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, ''))}
                       </ReactMarkdown>
                     </div>
                   </div>
@@ -533,7 +535,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                           : "bg-slate-800/50 border-slate-700 text-slate-400"
                       )}>
                         <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                          {opt}
+                          {fixLatex(opt)}
                         </ReactMarkdown>
                       </div>
                     ))}
@@ -547,7 +549,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                         <div className="flex gap-2">
                           <span className="text-teal-400 font-bold">{sq.id})</span>
                           <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                            {sq.content || (sq as any).text || ''}
+                            {fixLatex(sq.content || (sq as any).text || '')}
                           </ReactMarkdown>
                         </div>
                         <span className={cn(
@@ -575,7 +577,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                   </div>
                   <div className="text-slate-500 text-xs italic prose prose-invert prose-xs max-w-none">
                     <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                      {q.explanation}
+                      {fixLatex(q.explanation || '')}
                     </ReactMarkdown>
                   </div>
                 </div>

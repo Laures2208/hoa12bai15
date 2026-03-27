@@ -129,13 +129,7 @@ export const Gatekeeper = () => {
         }
         
         // 3. Delete from SQLite database
-        try {
-          await fetch(`/api/admin/students/${encodeURIComponent(student.name)}/${encodeURIComponent(student.studentClass)}`, {
-            method: 'DELETE'
-          });
-        } catch (err) {
-          console.error("Error deleting from SQLite:", err);
-        }
+        // Removed SQLite delete code for Vercel deployment compatibility
         
         alert(`Đã xoá học sinh ${student.name} và toàn bộ dữ liệu liên quan.`);
       } catch (error) {

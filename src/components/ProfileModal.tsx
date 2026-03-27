@@ -8,6 +8,7 @@ import { questionBank } from '../data/questionBank';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { fixLatex } from '../utils/latexHelper';
 import 'katex/dist/katex.min.css';
 
 interface ProfileModalProps {
@@ -279,16 +280,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
                         <p className="text-sm font-bold text-white mb-2">Câu {idx + 1}</p>
                         <div className="text-sm text-slate-200 mb-2">
                           <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                            {question.text}
+                            {fixLatex(question.text)}
                           </ReactMarkdown>
                         </div>
                         <div className="space-y-1">
                           <div className={cn("text-sm", showAnswers ? (ans.isCorrect ? "text-emerald-400" : "text-rose-400") : "text-slate-300")}>
-                            Đáp án của bạn: <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{studentAnswer}</ReactMarkdown>
+                            Đáp án của bạn: <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(studentAnswer)}</ReactMarkdown>
                           </div>
                           {showAnswers && !ans.isCorrect && (
                             <div className="text-sm text-emerald-400 font-bold">
-                              Đáp án đúng: <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{correctAnswer}</ReactMarkdown>
+                              Đáp án đúng: <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(correctAnswer)}</ReactMarkdown>
                             </div>
                           )}
                         </div>
@@ -297,7 +298,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Giải thích:</p>
                             <div className="text-sm text-slate-300 italic whitespace-pre-wrap">
                               <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                {question.insight}
+                                {fixLatex(question.insight)}
                               </ReactMarkdown>
                             </div>
                           </div>

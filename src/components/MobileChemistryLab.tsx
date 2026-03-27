@@ -4,6 +4,7 @@ import { Beaker, Flame, Zap, Droplets, Info, RefreshCw, CheckCircle2, AlertTrian
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { fixLatex } from '../utils/latexHelper';
 import { cn } from '../lib/utils';
 
 // --- Types & Data ---
@@ -478,7 +479,7 @@ export default function MobileChemistryLab() {
                   />
                   <div className="text-sm font-bold">
                     <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                      {chem.formula}
+                      {fixLatex(chem.formula)}
                     </ReactMarkdown>
                   </div>
                 </div>
@@ -522,7 +523,7 @@ export default function MobileChemistryLab() {
                       <h4 className="text-sm text-slate-400 mb-2 uppercase tracking-wider font-bold">Phương trình hóa học</h4>
                       <div className="bg-black/30 p-4 rounded-xl text-center overflow-x-auto">
                         <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                          {labNote.equation}
+                          {fixLatex(labNote.equation)}
                         </ReactMarkdown>
                       </div>
                     </div>
@@ -540,7 +541,7 @@ export default function MobileChemistryLab() {
                             <div className="w-6 h-6 rounded-full border border-white/20 shrink-0" style={{ backgroundColor: p.color }} />
                             <div>
                               <div className="font-bold text-sm">
-                                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{p.formula}</ReactMarkdown>
+                                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(p.formula)}</ReactMarkdown>
                               </div>
                               <div className="text-xs text-slate-400">{p.name}</div>
                             </div>
