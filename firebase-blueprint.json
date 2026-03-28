@@ -47,6 +47,41 @@
         "status": { "type": "string", "enum": ["unregistered", "waiting", "approved", "blocked"] },
         "timestamp": { "type": "string", "format": "date-time" }
       }
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "An announcement posted by admin.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "authorId", "createdAt"]
+    },
+    "Like": {
+      "title": "Like",
+      "description": "A like on an announcement.",
+      "type": "object",
+      "properties": {
+        "announcementId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["announcementId", "userId", "createdAt"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A comment on an announcement.",
+      "type": "object",
+      "properties": {
+        "announcementId": { "type": "string" },
+        "userId": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["announcementId", "userId", "content", "createdAt"]
     }
   },
   "firestore": {
@@ -57,6 +92,18 @@
     "/student_sessions/{sessionId}": {
       "schema": "StudentSession",
       "description": "Student registration and access status."
+    },
+    "/announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "Announcements posted by admin."
+    },
+    "/announcements/{announcementId}/likes/{likeId}": {
+      "schema": "Like",
+      "description": "Likes for announcements."
+    },
+    "/announcements/{announcementId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Comments for announcements."
     }
   }
 }

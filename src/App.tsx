@@ -44,9 +44,10 @@ import {
   Ban,
   ToggleLeft,
   ToggleRight,
-  BookOpen
+  BookOpen,
+  Bell
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, doc, getDoc, updateDoc, setDoc, deleteDoc, addDoc, serverTimestamp, where, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, getDoc, updateDoc, setDoc, deleteDoc, addDoc, serverTimestamp, where, getDocs, limit } from 'firebase/firestore';
 import { db } from './firebase';
 import { Routes, Route } from 'react-router-dom';
 import { StudentExamRoom } from './components/StudentExamRoom';
@@ -697,7 +698,7 @@ const Leaderboard = () => {
   );
 };
 
-const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 'gateway') => void }) => {
+const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' | 'exam-room' | 'gateway') => void, onOpenProfile: () => void }) => {
   const [examStarted, setExamStarted] = useState(false);
   const [currentExam, setCurrentExam] = useState<Exam | null>(null);
   const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string } | null>(() => {
@@ -742,6 +743,8 @@ const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 
             if (data.shuffleQuestions !== undefined) setShuffleQuestions(data.shuffleQuestions);
             if (data.shuffleAnswers !== undefined) setShuffleAnswers(data.shuffleAnswers);
           }
+        }, (error) => {
+          console.error("Error in admin settings snapshot:", error);
         });
       } catch (error) {
         console.error("Error setting up settings listener:", error);
@@ -1197,6 +1200,7 @@ const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 
         isAdmin={false} 
         studentInfo={studentInfo} 
         onTakeExam={handleStartExam} 
+        onOpenProfile={onOpenProfile}
       />
     );
   }
@@ -1667,8 +1671,10 @@ const FinalExam = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room' | 
   );
 };
 
+import { AdminAnnouncements } from './components/AdminAnnouncements';
+
 const AdminPortal = () => {
-  const [activeTab, setActiveTab] = useState<'results' | 'gatekeeper' | 'settings' | 'exams'>('results');
+  const [activeTab, setActiveTab] = useState<'results' | 'gatekeeper' | 'settings' | 'exams' | 'announcements'>('results');
   const [results, setResults] = useState<any[]>([]);
   const [exams, setExams] = useState<any[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>('all');
@@ -1694,6 +1700,8 @@ const AdminPortal = () => {
             ...doc.data()
           } as any));
           setExams(examsArray);
+        }, (error) => {
+          console.error("Error in exams snapshot:", error);
         });
 
         // Results listener
@@ -1906,7 +1914,25 @@ const AdminPortal = () => {
           <BookOpen className="w-4 h-4" />
           Quản lý Đề thi
         </button>
+        <button
+          onClick={() => setActiveTab('announcements')}
+          className={cn(
+            "px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap flex items-center gap-2",
+            activeTab === 'announcements' 
+              ? "bg-teal-500 text-white shadow-lg shadow-teal-500/20" 
+              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+          )}
+        >
+          <MessageSquare className="w-4 h-4" />
+          Thông báo
+        </button>
       </div>
+
+      {activeTab === 'announcements' && (
+        <ErrorBoundary>
+          <AdminAnnouncements />
+        </ErrorBoundary>
+      )}
 
       {activeTab === 'exams' && (
         <ErrorBoundary>
@@ -2824,8 +2850,10 @@ const LanguageSwitcher = () => {
   );
 };
 
-function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main' | 'admin' | 'exam-room' }) {
-  const [view, setView] = useState<'gateway' | 'main' | 'admin' | 'exam-room'>(initialView);
+import { StudentAnnouncements } from './components/StudentAnnouncements';
+
+function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' }) {
+  const [view, setView] = useState<'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements'>(initialView);
   const [showProfile, setShowProfile] = useState(false);
   const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string } | null>(() => {
     const saved = localStorage.getItem('lkt_student_session');
@@ -2834,6 +2862,16 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
   const [antiCheat22, setAntiCheat22] = useState(true);
   const [antiCheat45, setAntiCheat45] = useState(true);
   const [themeConfig, setThemeConfig] = useState({ theme: 'dark-teal', particles: 'electrons' });
+  const [latestAnnouncement, setLatestAnnouncement] = useState<any>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showAnnouncementToast, setShowAnnouncementToast] = useState(false);
+
+  useEffect(() => {
+    if (view === 'announcements') {
+      localStorage.setItem('lkt_last_seen_announcement', latestAnnouncement?.id || '');
+      setUnreadCount(0);
+    }
+  }, [view, latestAnnouncement]);
 
   useEffect(() => {
     const savedSession = localStorage.getItem('lkt_student_session');
@@ -2846,6 +2884,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
     let unsubscribeSettings: () => void;
     let unsubscribeConfig: () => void;
     let unsubscribeStudent: () => void;
+    let unsubscribeAnnouncements: () => void;
     
     const setupListener = async () => {
       const settingsRef = doc(db, 'admin', 'settings');
@@ -2854,6 +2893,8 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
           setAntiCheat22(snapshot.data().antiCheat22 ?? true);
           setAntiCheat45(snapshot.data().antiCheat45 ?? true);
         }
+      }, (error) => {
+        console.error("Error in settings snapshot:", error);
       });
 
       const configRef = doc(db, 'system_settings', 'config');
@@ -2866,6 +2907,8 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
           });
           setAntiCheat22(data.antiCheat ?? true);
         }
+      }, (error) => {
+        console.error("Error in config snapshot:", error);
       });
 
       const savedSession = localStorage.getItem('lkt_student_session');
@@ -2874,6 +2917,30 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
           const info = JSON.parse(savedSession);
           setStudentInfo(info);
           const sessionId = `${info.name}_${info.studentClass}`.replace(/\s+/g, '_');
+
+          // Listen for all announcements to count unread ones
+          const qAnnouncements = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+          unsubscribeAnnouncements = onSnapshot(qAnnouncements, (snapshot) => {
+            const lastSeenId = localStorage.getItem('lkt_last_seen_announcement');
+            let count = 0;
+            let latest: any = null;
+
+            snapshot.forEach((doc) => {
+              const data = { id: doc.id, ...doc.data() };
+              if (!latest) latest = data;
+              if (data.id !== lastSeenId) {
+                count++;
+              }
+            });
+
+            setUnreadCount(count);
+            setLatestAnnouncement(latest);
+            
+            if (count > 0 && latest && latest.id !== lastSeenId) {
+              setShowAnnouncementToast(true);
+              setTimeout(() => setShowAnnouncementToast(false), 5000);
+            }
+          });
           
           const sessionDoc = await getDoc(doc(db, 'student_sessions', sessionId));
           if (sessionDoc.exists()) {
@@ -2933,6 +3000,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
       if (unsubscribeSettings) unsubscribeSettings();
       if (unsubscribeConfig) unsubscribeConfig();
       if (unsubscribeStudent) unsubscribeStudent();
+      if (unsubscribeAnnouncements) unsubscribeAnnouncements();
     };
   }, []);
 
@@ -2984,7 +3052,6 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
           </div>
           
           <div className="flex items-center gap-3 md:gap-6">
-            <LanguageSwitcher />
             <button 
               onClick={() => setView('main')} 
               className={cn(
@@ -2995,35 +3062,25 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               Trang chủ
             </button>
             <button 
-              onClick={() => {
-                if (view !== 'main') {
-                  setView('main');
-                  setTimeout(() => {
-                    document.getElementById('virtual-lab')?.scrollIntoView({ behavior: 'smooth' });
-                  }, 100);
-                } else {
-                  document.getElementById('virtual-lab')?.scrollIntoView({ behavior: 'smooth' });
-                }
-              }} 
-              className="px-4 md:px-6 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-full text-xs md:text-sm hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-teal-500/30 flex items-center gap-2 nav-energy-btn"
+              onClick={() => setView('announcements')} 
+              className={cn(
+                "relative text-xs md:text-sm font-bold transition-colors nav-energy-btn px-3 py-2 rounded-full border border-slate-700 hover:border-teal-500/50",
+                view === 'announcements' ? "text-teal-400 bg-teal-500/10" : "text-slate-400 hover:text-teal-400"
+              )}
             >
-              <Beaker className="w-4 h-4 hidden md:block" />
-              <span className="hidden md:inline">Phòng Thí Nghiệm Ảo</span>
-              <span className="md:hidden">Lab Ảo</span>
+              <Bell className="w-4 h-4 md:hidden" />
+              <span className="hidden md:inline">Thông báo</span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 rounded-full text-[10px] flex items-center justify-center text-white font-bold animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
             </button>
             <button 
               onClick={() => setView('exam-room')} 
               className="px-4 md:px-6 py-2 bg-teal-500 text-white font-bold rounded-full text-xs md:text-sm hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20 nav-energy-btn"
             >
               Vào thi
-            </button>
-            <button 
-              onClick={() => setShowProfile(true)} 
-              className="p-2 md:px-4 md:py-2 bg-slate-800 text-slate-300 font-bold rounded-full text-xs md:text-sm hover:bg-slate-700 hover:text-white transition-colors border border-slate-700 flex items-center gap-2"
-              title="Hồ sơ / Thống kê"
-            >
-              <User className="w-4 h-4" />
-              <span className="hidden md:inline">Hồ sơ</span>
             </button>
             <button
               onClick={() => {
@@ -3046,6 +3103,40 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
         studentInfo={studentInfo || { name: '', studentClass: '' }} 
       />
 
+      <AnimatePresence>
+        {showAnnouncementToast && latestAnnouncement && (
+          <motion.div
+            initial={{ opacity: 0, x: 100 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 100 }}
+            className="fixed top-24 right-4 z-50 bg-slate-800 border border-teal-500/30 shadow-2xl shadow-teal-500/20 rounded-xl p-4 max-w-sm cursor-pointer"
+            onClick={() => {
+              setView('announcements');
+              setShowAnnouncementToast(false);
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-teal-500/20 flex items-center justify-center shrink-0">
+                <Bell className="w-5 h-5 text-teal-400" />
+              </div>
+              <div>
+                <h4 className="text-white font-bold text-sm mb-1">Thông báo mới từ Admin</h4>
+                <p className="text-slate-300 text-sm line-clamp-2">{latestAnnouncement.title}</p>
+              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowAnnouncementToast(false);
+                }}
+                className="text-slate-500 hover:text-white shrink-0 ml-2"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <main className="pt-20">
         <AnimatePresence mode="wait">
           {view === 'main' ? (
@@ -3063,6 +3154,26 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               <PracticeExercises />
               <VirtualChemistryLab />
               <Top10Leaderboard />
+            </motion.div>
+          ) : view === 'announcements' ? (
+            <motion.div
+              key="announcements"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-12 h-12 bg-teal-500/10 rounded-2xl flex items-center justify-center border border-teal-500/20 shadow-[0_0_20px_rgba(20,184,166,0.15)]">
+                  <MessageSquare className="w-6 h-6 text-teal-400" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-black text-white tracking-tight">Bảng Tin</h1>
+                  <p className="text-slate-400">Cập nhật thông tin mới nhất từ giáo viên</p>
+                </div>
+              </div>
+              <StudentAnnouncements studentInfo={studentInfo || { name: '', studentClass: '' }} />
             </motion.div>
           ) : view === 'admin' ? (
             <motion.div
@@ -3082,7 +3193,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.5 }}
             >
-              <FinalExam setView={setView} />
+              <FinalExam setView={setView} onOpenProfile={() => setShowProfile(true)} />
             </motion.div>
           )}
         </AnimatePresence>

@@ -123,11 +123,16 @@ export const AdminDashboard: React.FC = () => {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [aiPromptContent, setAiPromptContent] = useState('');
+  const [firestoreError, setFirestoreError] = useState<Error | null>(null);
 
   const [exams, setExams] = useState<Exam[]>([]);
   const [isLoadingExams, setIsLoadingExams] = useState(false);
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [viewingResultsExam, setViewingResultsExam] = useState<Exam | null>(null);
+
+  if (firestoreError) {
+    throw firestoreError;
+  }
 
   useEffect(() => {
     if (activeTab === 'history' && db) {
@@ -141,7 +146,11 @@ export const AdminDashboard: React.FC = () => {
         setExams(list);
         setIsLoadingExams(false);
       }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'exams_bank');
+        try {
+          handleFirestoreError(error, OperationType.LIST, 'exams_bank');
+        } catch (e) {
+          setFirestoreError(e instanceof Error ? e : new Error(String(e)));
+        }
         setIsLoadingExams(false);
       });
       return () => unsub();
@@ -158,6 +167,9 @@ export const AdminDashboard: React.FC = () => {
           setTimeout(() => setShowToast(false), 3000);
         }
       } catch (error) {
+        if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
+          throw error;
+        }
         console.error(error);
       }
     }
@@ -175,6 +187,9 @@ export const AdminDashboard: React.FC = () => {
         setTimeout(() => setShowToast(false), 3000);
       }
     } catch (error) {
+      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
+        throw error;
+      }
       console.error(error);
     }
   };
@@ -191,6 +206,9 @@ export const AdminDashboard: React.FC = () => {
         setTimeout(() => setShowToast(false), 3000);
       }
     } catch (error) {
+      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
+        throw error;
+      }
       console.error(error);
     }
   };
@@ -349,6 +367,9 @@ export const AdminDashboard: React.FC = () => {
 
     } catch (error) {
       // In lỗi chi tiết ra console để debug
+      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
+        throw error;
+      }
       console.error("CRITICAL ERROR - Save Exam Failed:", error);
       setToastMessage("Lỗi khi lưu đề thi. Vui lòng kiểm tra console.");
       setShowToast(true);

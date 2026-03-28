@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, Shield, ChevronRight, User, GraduationCap, Lock, Unlock, Zap, Database, LogOut } from 'lucide-react';
+import { Clock, Shield, ChevronRight, User, GraduationCap, Lock, Unlock, Zap, Database, LogOut, Bell } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { collection, query, where, getDocs, doc, setDoc, onSnapshot, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, onSnapshot, getDoc, deleteDoc, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { auth } from '../firebase';
 import { checkAndResetGatekeeper } from '../utils/gatekeeperHelper';
+import { MessageSquare } from 'lucide-react';
 
 enum OperationType {
   CREATE = 'create',
@@ -73,6 +74,31 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
   const [status, setStatus] = useState<'unregistered' | 'waiting' | 'approved' | 'blocked'>('unregistered');
   const [passcode, setPasscode] = useState('');
   const [isCheckingPasscode, setIsCheckingPasscode] = useState(false);
+  const [recentAnnouncements, setRecentAnnouncements] = useState<any[]>([]);
+  const [firestoreError, setFirestoreError] = useState<Error | null>(null);
+
+  if (firestoreError) {
+    throw firestoreError;
+  }
+
+  // Fetch recent announcements
+  useEffect(() => {
+    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'), limit(3));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setRecentAnnouncements(list);
+    }, (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, 'announcements');
+      } catch (e) {
+        setFirestoreError(e instanceof Error ? e : new Error(String(e)));
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Real-time clock
   useEffect(() => {
@@ -223,6 +249,9 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
 
       setProgress({ examsCompleted: completed, totalScore: score });
     } catch (error) {
+      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
+        throw error;
+      }
       console.error("Error fetching progress:", error);
     } finally {
       setIsLoadingProgress(false);
@@ -274,9 +303,18 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
           setStatus('unregistered');
           localStorage.removeItem('lkt_student_session');
         }
-      }, (error) => handleFirestoreError(error, OperationType.GET, 'student_sessions/' + sessionId));
+      }, (error) => {
+        try {
+          handleFirestoreError(error, OperationType.GET, 'student_sessions/' + sessionId);
+        } catch (e) {
+          setFirestoreError(e instanceof Error ? e : new Error(String(e)));
+        }
+      });
 
     } catch (error) {
+      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
+        throw error;
+      }
       console.error("Error registering:", error);
       alert("Có lỗi xảy ra khi đăng ký.");
     }
@@ -315,6 +353,9 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
         alert('Mã Passcode không chính xác!');
       }
     } catch (error) {
+      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
+        throw error;
+      }
       console.error("Error checking passcode:", error);
     } finally {
       setIsCheckingPasscode(false);
@@ -384,11 +425,21 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
 
           {/* Header: Clock & Slogan */}
           <header className="p-6 flex flex-col md:flex-row justify-between items-center z-10 border-b border-white/5 bg-slate-900/50 backdrop-blur-md">
-            <div className="flex items-center gap-3 text-teal-400 mb-4 md:mb-0">
-              <Clock className="w-5 h-5" />
-              <span className="font-mono text-xl tracking-wider">
-                {time.toLocaleTimeString('vi-VN')}
-              </span>
+            <div className="flex items-center gap-6 mb-4 md:mb-0">
+              <div className="relative">
+                <Bell className="w-6 h-6 text-teal-400" />
+                {recentAnnouncements.length > 0 && (
+                  <span className="absolute -top-2 -right-2 min-w-[20px] h-5 bg-rose-500 rounded-md text-[11px] flex items-center justify-center text-white font-bold px-1">
+                    {recentAnnouncements.length}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-teal-400">
+                <Clock className="w-5 h-5" />
+                <span className="font-mono text-xl tracking-wider">
+                  {time.toLocaleTimeString('vi-VN')}
+                </span>
+              </div>
             </div>
             <div className="text-center md:text-right">
               <h1 className="text-2xl font-black tracking-tighter text-white glow-sparkle">
@@ -402,7 +453,42 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
 
           {/* Main Content */}
           <main className="flex-1 flex flex-col items-center justify-center p-6 z-10">
-            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Announcements Section */}
+            {recentAnnouncements.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="w-full max-w-4xl bg-slate-900/80 border border-teal-500/30 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(20,184,166,0.15)] backdrop-blur-sm mb-8"
+              >
+                <div className="p-4 border-b border-slate-800 bg-slate-900/80 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-teal-500/20 rounded-lg flex items-center justify-center border border-teal-500/30">
+                    <MessageSquare className="w-4 h-4 text-teal-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white">Bảng Tin</h2>
+                    <p className="text-xs text-slate-400">Thông báo mới nhất từ giáo viên</p>
+                  </div>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {recentAnnouncements.map(announcement => (
+                    <div key={announcement.id} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 flex flex-col">
+                      <h3 className="text-sm font-bold text-white mb-1 line-clamp-2">{announcement.title}</h3>
+                      <div className="text-xs text-slate-400 flex items-center gap-2 mb-2">
+                        <span className="text-teal-400">{announcement.author}</span>
+                        <span>•</span>
+                        <span>{announcement.createdAt?.toDate ? new Date(announcement.createdAt.toDate()).toLocaleDateString('vi-VN') : 'Mới'}</span>
+                      </div>
+                      <p className="text-sm text-slate-300 line-clamp-3 opacity-80 flex-1">
+                        {announcement.content.replace(/[#*`_~]/g, '')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               
               {/* Registration Card */}
               <motion.div
@@ -600,7 +686,9 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                 )}
               </motion.div>
             </div>
+
           </main>
+
 
           {/* Bottom Bar */}
           <footer className="p-4 border-t border-white/5 bg-slate-900/80 backdrop-blur-md z-10 flex justify-between items-center">

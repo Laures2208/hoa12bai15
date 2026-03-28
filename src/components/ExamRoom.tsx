@@ -72,9 +72,10 @@ interface ExamRoomProps {
   isAdmin?: boolean;
   studentInfo?: { name: string; studentClass: string };
   onTakeExam?: (exam: Exam) => void;
+  onOpenProfile?: () => void;
 }
 
-export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo, onTakeExam }) => {
+export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo, onTakeExam, onOpenProfile }) => {
   const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<Result[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -327,9 +328,19 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
       {!isAdmin && (
         <div className="w-full lg:w-80 flex-shrink-0 space-y-6">
           <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <Target className="w-6 h-6 text-teal-400" />
-              Thống kê cá nhân
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Target className="w-6 h-6 text-teal-400" />
+                Thống kê cá nhân
+              </div>
+              {onOpenProfile && (
+                <button 
+                  onClick={onOpenProfile}
+                  className="text-sm text-teal-400 hover:text-teal-300 font-bold"
+                >
+                  Hồ sơ
+                </button>
+              )}
             </h3>
             
             {/* Accuracy Circle */}
