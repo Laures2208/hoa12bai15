@@ -999,7 +999,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
       const sessionId = `${studentInfo.name}_${studentInfo.studentClass}`.replace(/\s+/g, '_');
       const sessionSnap = await getDoc(doc(db, 'student_sessions', sessionId));
       if (sessionSnap.exists() && sessionSnap.data().status === 'blocked') {
-        alert('Tài khoản của bạn đã bị chặn bởi Admin. Kết quả bài thi sẽ không được lưu.');
+        alert('Tài khoản của bạn đã bị chặn bởi Giáo viên. Kết quả bài thi sẽ không được lưu.');
         setView('gateway');
         localStorage.removeItem('lkt_student_session');
         return;
@@ -1217,7 +1217,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
           <div className="mb-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
             <p className="text-sm text-amber-200">
-              Tính năng xem lại đáp án và lời giải đang bị khóa bởi Admin. Bạn chỉ có thể xem lại các câu hỏi và đáp án đã chọn.
+              Tính năng xem lại đáp án và lời giải đang bị khóa bởi Giáo viên. Bạn chỉ có thể xem lại các câu hỏi và đáp án đã chọn.
             </p>
           </div>
         )}
@@ -1851,8 +1851,8 @@ const AdminPortal = () => {
           "text-slate-900 dark:text-white"
         )}>
           <Table className="text-teal-500" />
-          Quản trị Hệ thống
-          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 ml-2">v1.5.0</span>
+          Quản trị Hệ thống (Giáo viên)
+          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 ml-2">v1.5.1</span>
         </h2>
         <div className="flex items-center gap-4 flex-wrap">
           <button 
@@ -2274,7 +2274,7 @@ const AdminPortal = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-md">
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
               <Key className="w-6 h-6 text-teal-500" />
-              Đổi mật khẩu Admin
+              Đổi mật khẩu Giáo viên
             </h3>
             <form onSubmit={handleChangePassword} className="space-y-4">
               <input 
@@ -2775,7 +2775,7 @@ const AdminAccess = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room')
               <Lock className="w-10 h-10 text-teal-600 dark:text-teal-500" />
             </div>
             <div className="text-center md:text-left">
-              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Cổng Quản trị viên</h3>
+              <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Cổng Giáo viên</h3>
               <p className="text-slate-600 dark:text-slate-400 text-lg max-w-md">Khu vực dành riêng cho giáo viên để quản lý ngân hàng câu hỏi, theo dõi tiến độ và xem kết quả thi của học sinh.</p>
             </div>
           </div>
@@ -2996,7 +2996,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               if (status === 'blocked') {
                 setView('gateway');
                 // Don't remove localStorage here so GatewayPage can show the "Bạn đã bị chặn" message
-                alert('Tài khoản của bạn đã bị chặn bởi Admin. Bạn sẽ bị đưa ra khỏi lớp.');
+                alert('Tài khoản của bạn đã bị chặn bởi Giáo viên. Bạn sẽ bị đưa ra khỏi lớp.');
               } else if (status !== 'approved') {
                 setView('gateway');
               }
@@ -3150,7 +3150,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
                 <Bell className="w-5 h-5 text-teal-400" />
               </div>
               <div>
-                <h4 className="text-white font-bold text-sm mb-1">Thông báo mới từ Admin</h4>
+                <h4 className="text-white font-bold text-sm mb-1">Thông báo mới từ Giáo viên</h4>
                 <p className="text-slate-300 text-sm line-clamp-2">{latestAnnouncement.title}</p>
               </div>
               <button 
@@ -3203,7 +3203,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
                   <p className="text-slate-400">Cập nhật thông tin mới nhất từ giáo viên</p>
                 </div>
               </div>
-              <StudentAnnouncements studentInfo={studentInfo || { name: '', studentClass: '' }} />
+              <StudentAnnouncements studentInfo={studentInfo || { name: '', studentClass: '' }} isAdmin={false} />
             </motion.div>
           ) : view === 'theory' ? (
             <motion.div
@@ -3259,7 +3259,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
             © 2024 Metallurgy Learning Platform. Thiết kế cho giáo dục hiện đại.
           </p>
           <p className="text-slate-500 dark:text-slate-400 text-xs mt-2 font-mono">
-            Phiên bản 1.5.0
+            Phiên bản 1.5.1
           </p>
         </div>
       </footer>

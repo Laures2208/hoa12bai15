@@ -40,7 +40,7 @@ export const AdvancedWordProcessor: React.FC<AdvancedWordProcessorProps> = ({ on
     try {
       const ai = new GoogleGenAI({ apiKey });
       const model = ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.1-flash-preview",
         contents: [
           {
             role: "user",

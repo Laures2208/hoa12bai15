@@ -9,6 +9,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { GoogleGenAI } from '@google/genai';
 import mammoth from 'mammoth';
+import { getGeminiApiKey } from '../services/gemini';
 
 enum OperationType {
   CREATE = 'create',
@@ -145,7 +146,7 @@ export const AdminTheory: React.FC = () => {
       } else {
         await addDoc(collection(db, 'theories'), {
           ...data,
-          author: 'Admin',
+          author: 'Giáo viên',
           createdAt: serverTimestamp(),
         }).catch(err => handleFirestoreError(err, OperationType.CREATE, 'theories'));
         showToast("Đã thêm lý thuyết mới thành công.");
@@ -214,7 +215,13 @@ export const AdminTheory: React.FC = () => {
 
     setIsGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = await getGeminiApiKey();
+      if (!apiKey) {
+        showToast("Vui lòng cấu hình API Key trong phần cài đặt để sử dụng tính năng AI.");
+        setIsGenerating(false);
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const prompt = `Bạn là một giáo viên Hóa học giỏi. Hãy viết một bài lý thuyết chi tiết về chủ đề: "${aiPrompt}".
       Yêu cầu:
       - Sử dụng định dạng Markdown.
@@ -266,7 +273,13 @@ export const AdminTheory: React.FC = () => {
 
       const questions = snapshot.docs.map(doc => doc.data().content).join('\n\n');
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = await getGeminiApiKey();
+      if (!apiKey) {
+        showToast("Vui lòng cấu hình API Key trong phần cài đặt để sử dụng tính năng AI.");
+        setIsGenerating(false);
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const prompt = `Bạn là một giáo viên Hóa học giỏi. Dựa vào danh sách các câu hỏi trắc nghiệm hóa học sau đây, hãy tổng hợp và viết một bài lý thuyết chi tiết bao phủ toàn bộ các kiến thức cần thiết để giải quyết các câu hỏi này.
       
       Danh sách câu hỏi:
@@ -353,7 +366,13 @@ export const AdminTheory: React.FC = () => {
       showToast("Đang dùng AI định dạng công thức hóa học...");
       let formattedText = textWithMarkers;
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const apiKey = await getGeminiApiKey();
+        if (!apiKey) {
+          showToast("Vui lòng cấu hình API Key trong phần cài đặt để sử dụng tính năng AI.");
+          setIsProcessingFile(false);
+          return;
+        }
+        const ai = new GoogleGenAI({ apiKey });
         const prompt = `Bạn là một chuyên gia Hóa học và định dạng văn bản. Hãy định dạng lại đoạn văn bản lý thuyết hóa học sau đây.
         Yêu cầu QUAN TRỌNG:
         - GIỮ NGUYÊN toàn bộ nội dung, cấu trúc, và các đánh dấu hình ảnh (ví dụ: [[IMAGE_PLACEHOLDER_1]]).
@@ -577,7 +596,13 @@ export const AdminTheory: React.FC = () => {
                   setIsGenerating(true);
                   showToast("Đang dùng AI chuẩn hóa công thức hóa học...");
                   try {
-                    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+                    const apiKey = await getGeminiApiKey();
+                    if (!apiKey) {
+                      showToast("Vui lòng cấu hình API Key trong phần cài đặt để sử dụng tính năng AI.");
+                      setIsGenerating(false);
+                      return;
+                    }
+                    const ai = new GoogleGenAI({ apiKey });
                     const prompt = `Bạn là một chuyên gia Hóa học và định dạng văn bản. Hãy định dạng lại đoạn văn bản lý thuyết hóa học sau đây.
                     Yêu cầu QUAN TRỌNG:
                     - GIỮ NGUYÊN toàn bộ nội dung, cấu trúc, và các đánh dấu hình ảnh (ví dụ: [[IMAGE_PLACEHOLDER_1]]).
@@ -761,7 +786,13 @@ export const AdminTheory: React.FC = () => {
                           setIsGenerating(true);
                           showToast("Đang dùng AI chuẩn hóa công thức hóa học...");
                           try {
-                            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+                            const apiKey = await getGeminiApiKey();
+                            if (!apiKey) {
+                              showToast("Vui lòng cấu hình API Key trong phần cài đặt để sử dụng tính năng AI.");
+                              setIsGenerating(false);
+                              return;
+                            }
+                            const ai = new GoogleGenAI({ apiKey });
                             const prompt = `Bạn là một chuyên gia Hóa học và định dạng văn bản. Hãy định dạng lại đoạn văn bản lý thuyết hóa học sau đây.
                             Yêu cầu QUAN TRỌNG:
                             - GIỮ NGUYÊN toàn bộ nội dung, cấu trúc, và các đánh dấu hình ảnh.

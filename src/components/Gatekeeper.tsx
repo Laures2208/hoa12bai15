@@ -168,7 +168,7 @@ export const Gatekeeper = () => {
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-2">
-              {autoApprove ? 'Học sinh đăng ký sẽ được vào lớp ngay lập tức.' : 'Học sinh phải đợi Admin duyệt mới được vào lớp.'}
+              {autoApprove ? 'Học sinh đăng ký sẽ được vào lớp ngay lập tức.' : 'Học sinh phải đợi Giáo viên duyệt mới được vào lớp.'}
             </p>
           </div>
 

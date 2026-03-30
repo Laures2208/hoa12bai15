@@ -3,9 +3,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, d
 import { db } from '../firebase';
 import { Plus, Edit2, Trash2, X, Save, MessageSquare, ThumbsUp } from 'lucide-react';
 import { cn } from '../lib/utils';
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
+import { StudentAnnouncements } from './StudentAnnouncements';
 
 interface Announcement {
   id: string;
@@ -19,27 +17,8 @@ interface Announcement {
 }
 
 export const AdminAnnouncements: React.FC = () => {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [currentAnnouncement, setCurrentAnnouncement] = useState<Partial<Announcement> | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Announcement[] = [];
-      snapshot.forEach(doc => {
-        list.push({ id: doc.id, ...doc.data() } as Announcement);
-      });
-      setAnnouncements(list);
-      setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching announcements:", error);
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   const handleSave = async () => {
     if (!currentAnnouncement?.title || !currentAnnouncement?.content) {
@@ -65,7 +44,7 @@ export const AdminAnnouncements: React.FC = () => {
         // Create
         await addDoc(collection(db, 'announcements'), {
           ...data,
-          author: 'Admin',
+          author: 'Giáo viên',
           createdAt: serverTimestamp(),
           likes: []
         });
@@ -88,10 +67,6 @@ export const AdminAnnouncements: React.FC = () => {
       }
     }
   };
-
-  if (isLoading) {
-    return <div className="p-8 text-center text-slate-400">Đang tải...</div>;
-  }
 
   return (
     <div className="p-6">
@@ -181,49 +156,15 @@ export const AdminAnnouncements: React.FC = () => {
       ) : null}
 
       <div className="space-y-4">
-        {announcements.length === 0 ? (
-          <div className="text-center py-12 text-slate-500 bg-slate-800/50 rounded-xl border border-slate-700/50">
-            Chưa có thông báo nào.
-          </div>
-        ) : (
-          announcements.map(announcement => (
-            <div key={announcement.id} className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-1">{announcement.title}</h3>
-                  <div className="text-xs text-slate-400 flex items-center gap-4">
-                    <span>{announcement.createdAt?.toDate ? new Date(announcement.createdAt.toDate()).toLocaleString('vi-VN') : 'Đang cập nhật...'}</span>
-                    <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3" /> {announcement.likes?.length || 0}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setCurrentAnnouncement(announcement);
-                      setIsEditing(true);
-                    }}
-                    className="p-2 text-slate-400 hover:text-teal-400 hover:bg-teal-400/10 rounded-lg transition-colors"
-                    title="Sửa"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(announcement.id)}
-                    className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-lg transition-colors"
-                    title="Xóa"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="prose prose-invert prose-teal max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                  {announcement.content}
-                </ReactMarkdown>
-              </div>
-            </div>
-          ))
-        )}
+        <StudentAnnouncements 
+          studentInfo={{ name: 'Giáo viên', studentClass: 'Admin' }} 
+          isAdmin={true} 
+          onEdit={(announcement) => {
+            setCurrentAnnouncement(announcement);
+            setIsEditing(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       </div>
     </div>
   );

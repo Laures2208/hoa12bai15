@@ -275,7 +275,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
       }
       
       if (sessionDoc.exists() && sessionDoc.data().status === 'blocked') {
-        alert("Tài khoản này đã bị chặn bởi Admin. Bạn không thể đăng ký lại.");
+        alert("Tài khoản này đã bị chặn bởi Giáo viên. Bạn không thể đăng ký lại.");
         return;
       }
 
@@ -340,7 +340,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
       }
       
       if (sessionDoc.exists() && sessionDoc.data().status === 'blocked') {
-          alert("Tài khoản này đã bị chặn bởi Admin.");
+          alert("Tài khoản này đã bị chặn bởi Giáo viên.");
           return;
         }
         
@@ -378,7 +378,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
       const currentStatus = sessionDoc.exists() ? sessionDoc.data().status : 'unregistered';
       setStatus(currentStatus as any);
       if (currentStatus === 'blocked') {
-        alert("Tài khoản này đã bị chặn bởi Admin. Bạn không thể vào phòng thí nghiệm.");
+        alert("Tài khoản này đã bị chặn bởi Giáo viên. Bạn không thể vào phòng thí nghiệm.");
       } else {
         alert("Bạn chưa được duyệt để vào phòng thí nghiệm!");
       }
@@ -697,14 +697,14 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                 Hệ thống yêu cầu xác thực để lưu trữ kết quả học tập.
               </p>
               <p className="text-[10px] text-slate-600 font-mono mt-1">
-                Phiên bản 1.5.0
+                Phiên bản 1.5.1
               </p>
             </div>
             <button
               onClick={onAdminAccess}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-700"
             >
-              Truy cập Admin
+              Truy cập Giáo viên
             </button>
           </footer>
         </motion.div>

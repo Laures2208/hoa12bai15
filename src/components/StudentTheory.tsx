@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { GoogleGenAI } from '@google/genai';
+import { getGeminiApiKey } from '../services/gemini';
 
 enum OperationType {
   CREATE = 'create',
@@ -138,7 +139,13 @@ export const StudentTheory: React.FC = () => {
     setIsGeneratingSummary(true);
     setAiSummary(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = await getGeminiApiKey();
+      if (!apiKey) {
+        showToast("Vui lòng cấu hình API Key trong phần cài đặt để sử dụng tính năng AI.");
+        setIsGeneratingSummary(false);
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const fullContent = `${theory.content}\n\n${theory.sections?.map(s => s.content).join('\n\n') || ''}`;
       const prompt = `Bạn là một gia sư Hóa học. Hãy tóm tắt ngắn gọn, dễ hiểu và rút ra các điểm chính cần nhớ từ bài lý thuyết sau đây:\n\nTiêu đề: ${theory.title}\n\nNội dung:\n${fullContent}`;
 

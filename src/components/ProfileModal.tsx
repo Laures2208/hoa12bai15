@@ -263,7 +263,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
                     <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
                       <Lock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                       <p className="text-sm text-amber-200">
-                        Tính năng xem lại đáp án và lời giải đang bị khóa bởi Admin. Bạn chỉ có thể xem lại các câu hỏi và đáp án đã chọn.
+                        Tính năng xem lại đáp án và lời giải đang bị khóa bởi Giáo viên. Bạn chỉ có thể xem lại các câu hỏi và đáp án đã chọn.
                       </p>
                     </div>
                   )}

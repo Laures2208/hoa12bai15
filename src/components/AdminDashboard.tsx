@@ -230,7 +230,7 @@ export const AdminDashboard: React.FC = () => {
     try {
       const ai = new GoogleGenAI({ apiKey });
       const model = ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.1-flash-preview",
         contents: [
           {
             role: "user",
@@ -491,7 +491,7 @@ export const AdminDashboard: React.FC = () => {
                           try {
                             const ai = new GoogleGenAI({ apiKey });
                             const model = ai.models.generateContent({
-                              model: "gemini-3-flash-preview",
+                              model: "gemini-3.1-flash-preview",
                               contents: [{ role: "user", parts: [{ text: "Hãy gợi ý số lượng câu hỏi cho 3 phần (Trắc nghiệm, Đúng/Sai, Trả lời ngắn) cho một đề thi Hóa học 12 chuẩn 2026. Trả về JSON: {multipleChoice: number, trueFalse: number, shortAnswer: number}" }] }],
                               config: { responseMimeType: "application/json" }
                             });
