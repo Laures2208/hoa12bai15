@@ -150,7 +150,7 @@ export const StudentTheory: React.FC = () => {
       const prompt = `Bạn là một gia sư Hóa học. Hãy tóm tắt ngắn gọn, dễ hiểu và rút ra các điểm chính cần nhớ từ bài lý thuyết sau đây:\n\nTiêu đề: ${theory.title}\n\nNội dung:\n${fullContent}`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         contents: prompt,
       });
 

@@ -36,7 +36,7 @@ export async function askGemini(prompt: string, history: { role: 'user' | 'model
   }
 
   const chat = genAI.chats.create({
-    model: "gemini-3.1-pro-preview",
+    model: "gemini-3-flash-preview",
     history: validHistory,
     config: {
       tools: [{ googleSearch: {} }],

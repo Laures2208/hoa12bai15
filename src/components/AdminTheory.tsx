@@ -230,7 +230,7 @@ export const AdminTheory: React.FC = () => {
       - Nội dung chính xác, dễ hiểu cho học sinh phổ thông.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         contents: prompt,
       });
 
@@ -293,7 +293,7 @@ export const AdminTheory: React.FC = () => {
       - Không cần giải chi tiết từng câu hỏi, chỉ tập trung vào phần lý thuyết nền tảng.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         contents: prompt,
       });
 
@@ -385,7 +385,7 @@ export const AdminTheory: React.FC = () => {
         ${textWithMarkers}`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.1-pro-preview",
+          model: "gemini-3-flash-preview",
           contents: prompt,
         });
         
@@ -615,7 +615,7 @@ export const AdminTheory: React.FC = () => {
                     ${currentTheory.content}`;
 
                     const response = await ai.models.generateContent({
-                      model: "gemini-3.1-pro-preview",
+                      model: "gemini-3-flash-preview",
                       contents: prompt,
                     });
                     
@@ -804,7 +804,7 @@ export const AdminTheory: React.FC = () => {
                             ${section.content}`;
 
                             const response = await ai.models.generateContent({
-                              model: "gemini-3.1-pro-preview",
+                              model: "gemini-3-flash-preview",
                               contents: prompt,
                             });
                             

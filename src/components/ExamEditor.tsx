@@ -152,7 +152,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
     try {
       const ai = new GoogleGenAI({ apiKey });
       const result = await ai.models.generateContent({
-        model: "gemini-3.1-flash-preview",
+        model: "gemini-3-flash-preview",
         contents: [
           {
             role: "user",
