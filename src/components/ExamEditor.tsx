@@ -34,6 +34,22 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
   const [tempSectionPoints, setTempSectionPoints] = useState(sectionPoints || { multipleChoice: 3, trueFalse: 4, shortAnswer: 3 });
   const [isAiAssisting, setIsAiAssisting] = useState<string | number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+
+  const handleAddImageUrl = () => {
+    if (!imageUrlInput.trim() || !tempQuestion) return;
+    setTempQuestion(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        imageUrl: imageUrlInput.trim(),
+        content: prev.content.includes('[[IMAGE_PLACEHOLDER]]') 
+          ? prev.content 
+          : prev.content + '\n\n[[IMAGE_PLACEHOLDER]]'
+      };
+    });
+    setImageUrlInput('');
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -103,6 +119,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
   const handleEdit = (q: Question) => {
     setEditingId(q.id);
     setTempQuestion({ ...q });
+    setImageUrlInput('');
   };
 
   const handleAddQuestion = (type: QuestionType) => {
@@ -126,6 +143,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
     onUpdate(newQuestions, tempSectionPoints);
     setEditingId(newId);
     setTempQuestion(newQuestion);
+    setImageUrlInput('');
   };
 
   const handleSave = () => {
@@ -289,10 +307,26 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                         disabled={isUploading}
                       />
                     </label>
+                    <div className="flex items-center gap-2 flex-1 max-w-sm">
+                      <input
+                        type="text"
+                        value={imageUrlInput}
+                        onChange={e => setImageUrlInput(e.target.value)}
+                        placeholder="Hoặc nhập URL ảnh..."
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500"
+                      />
+                      <button
+                        onClick={handleAddImageUrl}
+                        disabled={!imageUrlInput.trim()}
+                        className="px-3 py-2 bg-teal-500/20 text-teal-400 rounded-xl hover:bg-teal-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+                      >
+                        Thêm
+                      </button>
+                    </div>
                     {tempQuestion?.imageUrl && (
                       <button 
                         onClick={removeImage}
-                        className="text-xs text-rose-400 hover:text-rose-300 underline"
+                        className="text-xs text-rose-400 hover:text-rose-300 underline whitespace-nowrap"
                       >
                         Xóa ảnh
                       </button>
