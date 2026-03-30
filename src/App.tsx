@@ -3085,11 +3085,12 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
             <button 
               onClick={() => setView('theory')} 
               className={cn(
-                "text-xs md:text-sm font-bold transition-colors hidden md:block nav-energy-btn",
-                view === 'theory' ? "text-teal-400" : "text-slate-400 hover:text-teal-400"
+                "relative text-xs md:text-sm font-bold transition-colors nav-energy-btn px-3 py-2 rounded-full border border-slate-700 hover:border-teal-500/50",
+                view === 'theory' ? "text-teal-400 bg-teal-500/10" : "text-slate-400 hover:text-teal-400"
               )}
             >
-              Lý thuyết
+              <BookOpen className="w-4 h-4 md:hidden" />
+              <span className="hidden md:inline">Lý thuyết</span>
             </button>
             <button 
               onClick={() => setView('announcements')} 
