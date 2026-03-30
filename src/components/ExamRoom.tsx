@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { BookOpen, Clock, Shield, Plus, X, Award, Target, TrendingUp, TrendingDown, Activity, PlayCircle, Calendar, Search, Pencil, Trash2, AlertTriangle, CheckCircle2, FileText, ChevronDown, ChevronUp, Lock, Unlock } from 'lucide-react';
+import { BookOpen, Clock, Shield, Plus, X, Award, Target, TrendingUp, TrendingDown, Activity, PlayCircle, Calendar, Search, Pencil, Trash2, AlertTriangle, CheckCircle2, FileText, ChevronDown, ChevronUp, Lock, Unlock, Zap, Sun } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -328,62 +328,104 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
       {!isAdmin && (
         <div className="w-full lg:w-80 flex-shrink-0 space-y-6">
           <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Target className="w-6 h-6 text-teal-400" />
-                Thống kê cá nhân
+            {/* User Profile Info */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-blue-500/30">
+                {studentInfo?.name.charAt(0).toUpperCase() || 'S'}
               </div>
-              {onOpenProfile && (
-                <button 
-                  onClick={onOpenProfile}
-                  className="text-sm text-teal-400 hover:text-teal-300 font-bold"
-                >
-                  Hồ sơ
-                </button>
-              )}
-            </h3>
-            
-            {/* Accuracy Circle */}
-            <div className="flex flex-col items-center justify-center mb-8">
-              <div className="relative w-40 h-40 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" className="text-slate-800" strokeWidth="8" />
-                  <circle 
-                    cx="50" cy="50" r="45" fill="none" stroke="currentColor" 
-                    className="text-teal-500 drop-shadow-[0_0_8px_rgba(20,184,166,0.5)] transition-all duration-1000 ease-out" 
-                    strokeWidth="8" 
-                    strokeDasharray={`${accuracy * 2.827} 282.7`} 
-                    strokeLinecap="round" 
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-4xl font-black text-white">{accuracy}%</span>
-                  <span className="text-xs text-slate-400 uppercase tracking-wider mt-1">Chính xác</span>
-                </div>
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Học sinh</div>
+                <div className="text-lg font-bold text-white leading-tight">{studentInfo?.name || 'Học sinh ẩn danh'}</div>
+                <div className="text-sm font-bold text-blue-500">{studentInfo?.studentClass || 'Lớp ẩn danh'}</div>
               </div>
             </div>
 
-            {/* Stat Cards */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50 flex flex-col items-center text-center">
-                <Activity className="w-5 h-5 text-teal-400 mb-2" />
-                <span className="text-2xl font-bold text-white">{averageScore}</span>
-                <span className="text-xs text-slate-400 mt-1">Điểm trung bình</span>
+            {/* Controls */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="px-3 py-1.5 bg-slate-800 rounded-lg text-sm font-medium text-slate-300 flex items-center gap-2 cursor-pointer border border-slate-700 hover:bg-slate-700 transition-colors">
+                Last 30 Days
+                <ChevronDown className="w-4 h-4" />
               </div>
-              <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50 flex flex-col items-center text-center">
-                <TrendingUp className="w-5 h-5 text-emerald-400 mb-2" />
-                <span className="text-2xl font-bold text-white">{highestScore}</span>
-                <span className="text-xs text-slate-400 mt-1">Điểm cao nhất</span>
+              <div className="flex items-center gap-3 text-slate-400">
+                <Zap className="w-5 h-5 hover:text-amber-400 cursor-pointer transition-colors" />
+                <Sun className="w-5 h-5 hover:text-amber-400 cursor-pointer transition-colors" />
               </div>
-              <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50 flex flex-col items-center text-center">
-                <TrendingDown className="w-5 h-5 text-rose-400 mb-2" />
-                <span className="text-2xl font-bold text-white">{lowestScore}</span>
-                <span className="text-xs text-slate-400 mt-1">Điểm thấp nhất</span>
+            </div>
+
+            {/* Stats Card */}
+            <div className="bg-slate-800/50 rounded-3xl p-6 border border-slate-700/50 shadow-sm mb-6">
+              <div className="flex justify-between items-center mb-6">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tỉ lệ chính xác</span>
+                <span className="text-xl font-black text-emerald-500">{accuracy}%</span>
               </div>
-              <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50 flex flex-col items-center text-center">
-                <Award className="w-5 h-5 text-amber-400 mb-2" />
-                <span className="text-2xl font-bold text-white">{totalExams}</span>
-                <span className="text-xs text-slate-400 mt-1">Số bài đã làm</span>
+              
+              {/* Accuracy Circle */}
+              <div className="flex justify-center mb-8">
+                <div className="relative w-36 h-36 flex items-center justify-center">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" className="text-slate-700" strokeWidth="12" />
+                    <circle 
+                      cx="50" cy="50" r="40" fill="none" stroke="currentColor" 
+                      className="text-emerald-500 transition-all duration-1000 ease-out" 
+                      strokeWidth="12" 
+                      strokeDasharray={`${accuracy * 2.512} 251.2`} 
+                      strokeLinecap="round" 
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <Target className="w-6 h-6 text-emerald-500 mb-1" />
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Accuracy</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mini Stats */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 text-center shadow-sm">
+                  <div className="text-3xl font-black text-blue-400">{totalExams}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase mt-1">Exams Taken</div>
+                </div>
+                <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 text-center shadow-sm">
+                  <div className="text-3xl font-black text-blue-400">{averageScore}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase mt-1">Avg Score</div>
+                </div>
+              </div>
+
+              <div className="text-center mb-6">
+                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Max Score</div>
+                <div className="text-xl font-black text-white">{highestScore}</div>
+              </div>
+
+              <button 
+                onClick={onOpenProfile}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors shadow-md shadow-blue-500/20"
+              >
+                XEM CHI TIẾT THỐNG KÊ
+              </button>
+            </div>
+
+            {/* Exam History */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Lịch sử làm bài
+              </h4>
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                {results.slice(0, 5).map(result => {
+                  const exam = exams.find(e => e.id === result.examId);
+                  return (
+                    <div key={result.id} className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex justify-between items-center">
+                      <div>
+                        <div className="text-sm font-bold text-white line-clamp-1">{exam?.title || 'Đề thi đã xóa'}</div>
+                        <div className="text-xs text-slate-500 mt-1">{formatDate(result.createdAt)}</div>
+                      </div>
+                      <div className="text-sm font-black text-teal-400 bg-teal-500/10 px-2 py-1 rounded-lg">{result.score}đ</div>
+                    </div>
+                  );
+                })}
+                {results.length === 0 && (
+                  <div className="text-sm text-slate-500 text-center py-4 bg-slate-800/50 rounded-xl border border-slate-700">Chưa có bài làm nào</div>
+                )}
               </div>
             </div>
           </div>
