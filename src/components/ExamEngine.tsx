@@ -49,6 +49,7 @@ export const ExamEngine: React.FC<{ type: '22' | '45', onFinish: (score: number)
   return (
     <div className="p-6 bg-slate-900 text-white">
       <div className="text-xl font-bold mb-4">Thời gian: {Math.floor(timer / 60)}:{timer % 60}</div>
+      <div className="text-lg mb-6 font-bold text-teal-400">Câu {currentIdx + 1}:</div>
       <div className="text-lg mb-6">{questions[currentIdx].content}</div>
       <div className="grid grid-cols-1 gap-4">
         {questions[currentIdx].options.map((opt: string, i: number) => (

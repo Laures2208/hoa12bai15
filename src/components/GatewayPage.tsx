@@ -692,9 +692,14 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
 
           {/* Bottom Bar */}
           <footer className="p-4 border-t border-white/5 bg-slate-900/80 backdrop-blur-md z-10 flex justify-between items-center">
-            <p className="text-xs text-slate-500">
-              Hệ thống yêu cầu xác thực để lưu trữ kết quả học tập.
-            </p>
+            <div className="flex flex-col">
+              <p className="text-xs text-slate-500">
+                Hệ thống yêu cầu xác thực để lưu trữ kết quả học tập.
+              </p>
+              <p className="text-[10px] text-slate-600 font-mono mt-1">
+                Phiên bản 1.5.0
+              </p>
+            </div>
             <button
               onClick={onAdminAccess}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-700"

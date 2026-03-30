@@ -235,6 +235,7 @@ export const ExamSystem = () => {
 
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 mb-6 flex-1 shadow-xl">
               <div className="mb-8 text-xl leading-relaxed text-white">
+                <div className="font-bold text-teal-400 mb-2">Câu {currentStep + 1}:</div>
                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                   {fixLatex(questions[currentStep].content)}
                 </ReactMarkdown>

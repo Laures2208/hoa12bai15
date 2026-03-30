@@ -59,12 +59,21 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 
+interface TheorySection {
+  id: string;
+  title?: string;
+  content: string;
+  imageUrl?: string;
+}
+
 interface Theory {
   id: string;
   title: string;
   content: string;
+  sections?: TheorySection[];
   author: string;
   createdAt: any;
+  imageUrl?: string;
 }
 
 export const StudentTheory: React.FC = () => {
@@ -76,6 +85,13 @@ export const StudentTheory: React.FC = () => {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [firestoreError, setFirestoreError] = useState<Error | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   if (firestoreError) {
     throw firestoreError;
@@ -122,8 +138,9 @@ export const StudentTheory: React.FC = () => {
     setIsGeneratingSummary(true);
     setAiSummary(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
-      const prompt = `Bạn là một gia sư Hóa học. Hãy tóm tắt ngắn gọn, dễ hiểu và rút ra các điểm chính cần nhớ từ bài lý thuyết sau đây:\n\nTiêu đề: ${theory.title}\n\nNội dung:\n${theory.content}`;
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const fullContent = `${theory.content}\n\n${theory.sections?.map(s => s.content).join('\n\n') || ''}`;
+      const prompt = `Bạn là một gia sư Hóa học. Hãy tóm tắt ngắn gọn, dễ hiểu và rút ra các điểm chính cần nhớ từ bài lý thuyết sau đây:\n\nTiêu đề: ${theory.title}\n\nNội dung:\n${fullContent}`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.1-pro-preview",
@@ -133,7 +150,7 @@ export const StudentTheory: React.FC = () => {
       setAiSummary(response.text || 'Không thể tạo tóm tắt.');
     } catch (error) {
       console.error("Error generating summary:", error);
-      alert("Lỗi khi tạo tóm tắt bằng AI. Vui lòng kiểm tra lại API Key.");
+      showToast("Lỗi khi tạo tóm tắt bằng AI. Vui lòng kiểm tra lại API Key.");
     } finally {
       setIsGeneratingSummary(false);
     }
@@ -141,7 +158,8 @@ export const StudentTheory: React.FC = () => {
 
   const filteredTheories = theories.filter(t => 
     t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.content.toLowerCase().includes(searchTerm.toLowerCase())
+    t.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.sections?.some(s => s.content.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (isLoading) {
@@ -184,9 +202,13 @@ export const StudentTheory: React.FC = () => {
                   className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 cursor-pointer hover:border-teal-500/50 hover:shadow-[0_0_30px_rgba(20,184,166,0.1)] transition-all group"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-teal-500/10 rounded-xl flex items-center justify-center border border-teal-500/20 group-hover:scale-110 transition-transform">
-                      <BookOpen className="w-6 h-6 text-teal-400" />
-                    </div>
+                    {theory.imageUrl ? (
+                      <img src={theory.imageUrl} alt={theory.title} className="w-16 h-16 object-cover rounded-xl border border-teal-500/20 group-hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-12 h-12 bg-teal-500/10 rounded-xl flex items-center justify-center border border-teal-500/20 group-hover:scale-110 transition-transform shrink-0">
+                        <BookOpen className="w-6 h-6 text-teal-400" />
+                      </div>
+                    )}
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-white mb-2 line-clamp-2 group-hover:text-teal-400 transition-colors">{theory.title}</h3>
                       <p className="text-sm text-slate-400 line-clamp-3 mb-4">
@@ -204,6 +226,9 @@ export const StudentTheory: React.FC = () => {
         </>
       ) : (
         <div className="bg-slate-800/50 backdrop-blur-sm rounded-3xl border border-slate-700/50 overflow-hidden shadow-2xl">
+          {selectedTheory.imageUrl && (
+            <img src={selectedTheory.imageUrl} alt={selectedTheory.title} className="w-full h-48 md:h-64 object-cover" referrerPolicy="no-referrer" />
+          )}
           <div className="p-6 md:p-8 border-b border-slate-700/50 bg-slate-900/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <button 
@@ -251,16 +276,43 @@ export const StudentTheory: React.FC = () => {
             </div>
           )}
 
-          <div className="p-6 md:p-8">
-            <div 
-              ref={contentRef}
-              className="prose prose-invert prose-teal max-w-none"
-            >
+          <div className="p-6 md:p-8" ref={contentRef}>
+            <div className="prose prose-invert prose-teal max-w-none">
               <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                 {selectedTheory.content}
               </ReactMarkdown>
             </div>
+
+            {selectedTheory.sections && selectedTheory.sections.length > 0 && (
+              <div className="mt-8 space-y-8">
+                {selectedTheory.sections.map((section, index) => (
+                  <div key={section.id} className="bg-slate-800/30 rounded-2xl border border-slate-700/50 overflow-hidden">
+                    {section.imageUrl && (
+                      <img src={section.imageUrl} alt={section.title || `Phần ${index + 1}`} className="w-full h-auto max-h-96 object-cover" referrerPolicy="no-referrer" />
+                    )}
+                    <div className="p-6">
+                      {section.title && (
+                        <h3 className="text-xl font-bold text-white mb-4">{section.title}</h3>
+                      )}
+                      <div className="prose prose-invert prose-teal max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                          {section.content}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 z-50 animate-in slide-in-from-bottom-5">
+          <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+          {toastMessage}
         </div>
       )}
     </div>

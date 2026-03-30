@@ -1672,9 +1672,11 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
 };
 
 import { AdminAnnouncements } from './components/AdminAnnouncements';
+import { AdminTheory } from './components/AdminTheory';
+import { StudentTheory } from './components/StudentTheory';
 
 const AdminPortal = () => {
-  const [activeTab, setActiveTab] = useState<'results' | 'gatekeeper' | 'settings' | 'exams' | 'announcements'>('results');
+  const [activeTab, setActiveTab] = useState<'results' | 'gatekeeper' | 'settings' | 'exams' | 'announcements' | 'theory'>('results');
   const [results, setResults] = useState<any[]>([]);
   const [exams, setExams] = useState<any[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>('all');
@@ -1850,6 +1852,7 @@ const AdminPortal = () => {
         )}>
           <Table className="text-teal-500" />
           Quản trị Hệ thống
+          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 ml-2">v1.5.0</span>
         </h2>
         <div className="flex items-center gap-4 flex-wrap">
           <button 
@@ -1926,11 +1929,29 @@ const AdminPortal = () => {
           <MessageSquare className="w-4 h-4" />
           Thông báo
         </button>
+        <button
+          onClick={() => setActiveTab('theory')}
+          className={cn(
+            "px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap flex items-center gap-2",
+            activeTab === 'theory' 
+              ? "bg-teal-500 text-white shadow-lg shadow-teal-500/20" 
+              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+          )}
+        >
+          <BookOpen className="w-4 h-4" />
+          Lý thuyết
+        </button>
       </div>
 
       {activeTab === 'announcements' && (
         <ErrorBoundary>
           <AdminAnnouncements />
+        </ErrorBoundary>
+      )}
+
+      {activeTab === 'theory' && (
+        <ErrorBoundary>
+          <AdminTheory />
         </ErrorBoundary>
       )}
 
@@ -2852,8 +2873,8 @@ const LanguageSwitcher = () => {
 
 import { StudentAnnouncements } from './components/StudentAnnouncements';
 
-function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' }) {
-  const [view, setView] = useState<'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements'>(initialView);
+function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory' }) {
+  const [view, setView] = useState<'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory'>(initialView);
   const [showProfile, setShowProfile] = useState(false);
   const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string } | null>(() => {
     const saved = localStorage.getItem('lkt_student_session');
@@ -3062,6 +3083,15 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               Trang chủ
             </button>
             <button 
+              onClick={() => setView('theory')} 
+              className={cn(
+                "text-xs md:text-sm font-bold transition-colors hidden md:block nav-energy-btn",
+                view === 'theory' ? "text-teal-400" : "text-slate-400 hover:text-teal-400"
+              )}
+            >
+              Lý thuyết
+            </button>
+            <button 
               onClick={() => setView('announcements')} 
               className={cn(
                 "relative text-xs md:text-sm font-bold transition-colors nav-energy-btn px-3 py-2 rounded-full border border-slate-700 hover:border-teal-500/50",
@@ -3175,6 +3205,26 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               </div>
               <StudentAnnouncements studentInfo={studentInfo || { name: '', studentClass: '' }} />
             </motion.div>
+          ) : view === 'theory' ? (
+            <motion.div
+              key="theory"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-12 h-12 bg-teal-500/10 rounded-2xl flex items-center justify-center border border-teal-500/20 shadow-[0_0_20px_rgba(20,184,166,0.15)]">
+                  <BookOpen className="w-6 h-6 text-teal-400" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-black text-white tracking-tight">Lý thuyết</h1>
+                  <p className="text-slate-400">Tài liệu và bài giảng hóa học</p>
+                </div>
+              </div>
+              <StudentTheory />
+            </motion.div>
           ) : view === 'admin' ? (
             <motion.div
               key="admin"
@@ -3207,6 +3257,9 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
           </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm">
             © 2024 Metallurgy Learning Platform. Thiết kế cho giáo dục hiện đại.
+          </p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs mt-2 font-mono">
+            Phiên bản 1.5.0
           </p>
         </div>
       </footer>

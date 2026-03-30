@@ -53,21 +53,25 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
 
     setIsUploading(true);
     try {
-      // Đọc file dưới dạng Base64 (Data URL)
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-      });
+      // Tải ảnh lên Firebase Storage thay vì dùng Base64 để tránh giới hạn 1MB của Firestore
+      const imageRef = ref(storage, `exams/images/${auth.currentUser?.uid || 'anonymous'}/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(imageRef, file);
       
-      reader.readAsDataURL(file);
-      const base64String = await base64Promise;
+      await new Promise((resolve, reject) => {
+        uploadTask.on('state_changed', 
+          null,
+          (error) => reject(error),
+          () => resolve(null)
+        );
+      });
+
+      const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
 
       setTempQuestion(prev => {
         if (!prev) return prev;
         return {
           ...prev,
-          imageUrl: base64String,
+          imageUrl: downloadURL,
           // Tự động thêm placeholder nếu chưa có
           content: prev.content.includes('[[IMAGE_PLACEHOLDER]]') 
             ? prev.content 
@@ -75,10 +79,10 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
         };
       });
       
-      console.log('Image converted to Base64 successfully');
+      console.log('Image uploaded to Storage successfully:', downloadURL);
     } catch (error: any) {
-      console.error('Base64 conversion error:', error);
-      alert('Lỗi xử lý ảnh: ' + (error.message || 'Không xác định'));
+      console.error('Image upload error:', error);
+      alert('Lỗi tải ảnh: ' + (error.message || 'Không xác định'));
     } finally {
       setIsUploading(false);
       // Reset input để có thể chọn lại cùng 1 file

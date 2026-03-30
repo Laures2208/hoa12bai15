@@ -65,6 +65,8 @@ interface Announcement {
   author: string;
   createdAt: any;
   likes: string[];
+  imageUrl?: string;
+  isPinned?: boolean;
 }
 
 interface Comment {
@@ -99,6 +101,14 @@ export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ stud
       const list: Announcement[] = [];
       snapshot.forEach(doc => {
         list.push({ id: doc.id, ...doc.data() } as Announcement);
+      });
+      // Sort: Pinned first, then by date
+      list.sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dateB.getTime() - dateA.getTime();
       });
       setAnnouncements(list);
       setIsLoading(false);
@@ -212,7 +222,12 @@ export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ stud
                   {announcement.author.charAt(0)}
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white leading-tight">{announcement.title}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-white leading-tight">{announcement.title}</h3>
+                    {announcement.isPinned && (
+                      <span className="px-2 py-0.5 bg-teal-500/20 text-teal-400 text-[10px] font-bold rounded-full uppercase">Ghim</span>
+                    )}
+                  </div>
                   <div className="text-xs text-slate-400 flex items-center gap-2 mt-1">
                     <span className="font-medium text-teal-400">{announcement.author}</span>
                     <span>•</span>
@@ -220,6 +235,10 @@ export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ stud
                   </div>
                 </div>
               </div>
+
+              {announcement.imageUrl && (
+                <img src={announcement.imageUrl} alt={announcement.title} className="w-full h-auto rounded-lg mb-4" referrerPolicy="no-referrer" />
+              )}
 
               <div className="prose prose-invert prose-teal max-w-none mb-6">
                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>

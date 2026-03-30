@@ -14,6 +14,8 @@ interface Announcement {
   author: string;
   createdAt: any;
   likes: string[];
+  imageUrl?: string;
+  isPinned?: boolean;
 }
 
 export const AdminAnnouncements: React.FC = () => {
@@ -46,18 +48,23 @@ export const AdminAnnouncements: React.FC = () => {
     }
 
     try {
+      const data = {
+        title: currentAnnouncement.title,
+        content: currentAnnouncement.content,
+        imageUrl: currentAnnouncement.imageUrl || '',
+        isPinned: !!currentAnnouncement.isPinned,
+      };
+
       if (currentAnnouncement.id) {
         // Update
         await updateDoc(doc(db, 'announcements', currentAnnouncement.id), {
-          title: currentAnnouncement.title,
-          content: currentAnnouncement.content,
+          ...data,
           updatedAt: serverTimestamp()
         });
       } else {
         // Create
         await addDoc(collection(db, 'announcements'), {
-          title: currentAnnouncement.title,
-          content: currentAnnouncement.content,
+          ...data,
           author: 'Admin',
           createdAt: serverTimestamp(),
           likes: []
@@ -124,6 +131,26 @@ export const AdminAnnouncements: React.FC = () => {
                 placeholder="Nhập tiêu đề thông báo..."
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">URL Hình ảnh (tùy chọn)</label>
+              <input
+                type="text"
+                value={currentAnnouncement.imageUrl || ''}
+                onChange={(e) => setCurrentAnnouncement({ ...currentAnnouncement, imageUrl: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-teal-500"
+                placeholder="Nhập URL hình ảnh..."
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!currentAnnouncement.isPinned}
+                onChange={(e) => setCurrentAnnouncement({ ...currentAnnouncement, isPinned: e.target.checked })}
+                className="w-4 h-4 text-teal-500 bg-slate-900 border-slate-700 rounded focus:ring-teal-500"
+              />
+              <label className="text-sm font-medium text-slate-400">Ghim thông báo lên đầu</label>
+            </div>
+            
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1">Nội dung (Hỗ trợ Markdown & LaTeX)</label>
               <textarea

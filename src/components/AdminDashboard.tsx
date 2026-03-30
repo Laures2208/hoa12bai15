@@ -327,6 +327,15 @@ export const AdminDashboard: React.FC = () => {
         source: 'Admin Center'
       };
 
+      // Kiểm tra kích thước dữ liệu (Giới hạn Firestore là 1MB)
+      const estimatedSize = JSON.stringify(examData).length;
+      if (estimatedSize > 1000000) {
+        setToastMessage("Đề thi quá lớn (vượt quá 1MB). Vui lòng giảm số lượng câu hỏi hoặc xóa bớt hình ảnh dung lượng cao.");
+        setShowToast(true);
+        setIsSubmitting(false);
+        return;
+      }
+
       // Gửi dữ liệu lên Firestore
       if (editingExamId) {
         const { createdAt, ...updateData } = examData;

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs, where } from 'firebase/firestore';
-import { db, auth } from '../firebase';
-import { Plus, Edit2, Trash2, X, Save, Sparkles, BookOpen } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, auth, storage } from '../firebase';
+import { Plus, Edit2, Trash2, X, Save, Sparkles, BookOpen, Upload, Loader2, ArrowUp, ArrowDown, ImagePlus } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { GoogleGenAI } from '@google/genai';
+import mammoth from 'mammoth';
 
 enum OperationType {
   CREATE = 'create',
@@ -59,12 +61,21 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 
+interface TheorySection {
+  id: string;
+  title?: string;
+  content: string;
+  imageUrl?: string;
+}
+
 interface Theory {
   id: string;
   title: string;
   content: string;
+  sections?: TheorySection[];
   author: string;
   createdAt: any;
+  imageUrl?: string;
 }
 
 export const AdminTheory: React.FC = () => {
@@ -102,26 +113,42 @@ export const AdminTheory: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  const [showConfirmDelete, setShowConfirmDelete] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const handleSave = async () => {
-    if (!currentTheory?.title || !currentTheory?.content) {
-      alert("Vui lòng nhập đầy đủ tiêu đề và nội dung.");
+    if (!currentTheory?.title || (!currentTheory?.content && (!currentTheory?.sections || currentTheory.sections.length === 0))) {
+      showToast("Vui lòng nhập đầy đủ tiêu đề và nội dung.");
       return;
     }
 
     try {
+      const data = {
+        title: currentTheory.title,
+        content: currentTheory.content || '',
+        imageUrl: currentTheory.imageUrl || '',
+        sections: currentTheory.sections || [],
+      };
+
       if (currentTheory.id) {
         await updateDoc(doc(db, 'theories', currentTheory.id), {
-          title: currentTheory.title,
-          content: currentTheory.content,
+          ...data,
           updatedAt: serverTimestamp()
         }).catch(err => handleFirestoreError(err, OperationType.UPDATE, 'theories/' + currentTheory.id));
+        showToast("Đã cập nhật lý thuyết thành công.");
       } else {
         await addDoc(collection(db, 'theories'), {
-          title: currentTheory.title,
-          content: currentTheory.content,
+          ...data,
           author: 'Admin',
           createdAt: serverTimestamp(),
         }).catch(err => handleFirestoreError(err, OperationType.CREATE, 'theories'));
+        showToast("Đã thêm lý thuyết mới thành công.");
       }
       setIsEditing(false);
       setCurrentTheory(null);
@@ -130,33 +157,64 @@ export const AdminTheory: React.FC = () => {
         throw error;
       }
       console.error("Error saving theory:", error);
-      alert("Lỗi khi lưu lý thuyết.");
+      showToast("Lỗi khi lưu lý thuyết.");
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa lý thuyết này?")) {
-      try {
-        await deleteDoc(doc(db, 'theories', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, 'theories/' + id));
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
-          throw error;
-        }
-        console.error("Error deleting theory:", error);
-        alert("Lỗi khi xóa lý thuyết.");
+    try {
+      await deleteDoc(doc(db, 'theories', id)).catch(err => handleFirestoreError(err, OperationType.DELETE, 'theories/' + id));
+      showToast("Đã xóa lý thuyết thành công.");
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
+        throw error;
       }
+      console.error("Error deleting theory:", error);
+      showToast("Lỗi khi xóa lý thuyết.");
+    } finally {
+      setShowConfirmDelete(null);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, sectionId?: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uploadId = sectionId || 'main';
+    setUploadingImageId(uploadId);
+    showToast("Đang tải ảnh lên...");
+
+    try {
+      const imageRef = ref(storage, `theories/images/${Date.now()}_${file.name}`);
+      await uploadBytes(imageRef, file);
+      const url = await getDownloadURL(imageRef);
+
+      if (sectionId) {
+        setCurrentTheory(prev => ({
+          ...prev,
+          sections: prev?.sections?.map(s => s.id === sectionId ? { ...s, imageUrl: url } : s)
+        }));
+      } else {
+        setCurrentTheory(prev => ({ ...prev, imageUrl: url }));
+      }
+      showToast("Tải ảnh lên thành công!");
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      showToast("Lỗi khi tải ảnh lên.");
+    } finally {
+      setUploadingImageId(null);
     }
   };
 
   const generateTheoryWithAI = async () => {
     if (!aiPrompt.trim()) {
-      alert("Vui lòng nhập chủ đề để AI tạo lý thuyết.");
+      showToast("Vui lòng nhập chủ đề để AI tạo lý thuyết.");
       return;
     }
 
     setIsGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Bạn là một giáo viên Hóa học giỏi. Hãy viết một bài lý thuyết chi tiết về chủ đề: "${aiPrompt}".
       Yêu cầu:
       - Sử dụng định dạng Markdown.
@@ -176,9 +234,10 @@ export const AdminTheory: React.FC = () => {
         title: prev?.title || aiPrompt
       }));
       setAiPrompt('');
+      showToast("Đã tạo nội dung bằng AI thành công.");
     } catch (error) {
       console.error("Error generating theory:", error);
-      alert("Lỗi khi tạo lý thuyết bằng AI. Vui lòng kiểm tra lại API Key.");
+      showToast("Lỗi khi tạo lý thuyết bằng AI. Vui lòng kiểm tra lại API Key.");
     } finally {
       setIsGenerating(false);
     }
@@ -186,7 +245,7 @@ export const AdminTheory: React.FC = () => {
 
   const generateTheoryFromExam = async () => {
     if (!examCodePrompt.trim()) {
-      alert("Vui lòng nhập mã đề thi.");
+      showToast("Vui lòng nhập mã đề thi.");
       return;
     }
 
@@ -200,14 +259,14 @@ export const AdminTheory: React.FC = () => {
       });
       
       if (snapshot.empty) {
-        alert("Không tìm thấy câu hỏi nào cho mã đề này.");
+        showToast("Không tìm thấy câu hỏi nào cho mã đề này.");
         setIsGenerating(false);
         return;
       }
 
       const questions = snapshot.docs.map(doc => doc.data().content).join('\n\n');
 
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Bạn là một giáo viên Hóa học giỏi. Dựa vào danh sách các câu hỏi trắc nghiệm hóa học sau đây, hãy tổng hợp và viết một bài lý thuyết chi tiết bao phủ toàn bộ các kiến thức cần thiết để giải quyết các câu hỏi này.
       
       Danh sách câu hỏi:
@@ -232,11 +291,125 @@ export const AdminTheory: React.FC = () => {
         title: prev?.title || `Lý thuyết tổng hợp từ mã đề ${examCodePrompt}`
       }));
       setExamCodePrompt('');
+      showToast("Đã tạo nội dung từ mã đề thành công.");
     } catch (error) {
       console.error("Error generating theory from exam:", error);
-      alert("Lỗi khi tạo lý thuyết từ mã đề. Vui lòng kiểm tra lại kết nối hoặc API Key.");
+      showToast("Lỗi khi tạo lý thuyết từ mã đề. Vui lòng kiểm tra lại kết nối hoặc API Key.");
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+
+  const processWordFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingFile(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const extractedImages: { id: string, blob: Blob, marker: string, url?: string }[] = [];
+      let imageIndex = 1;
+
+      const options = {
+        // @ts-ignore
+        convertImage: mammoth.images.inline(function(element) {
+          return element.read("arrayBuffer").then(function(imageBuffer) {
+            const blob = new Blob([imageBuffer], { type: element.contentType });
+            const marker = `[[IMAGE_PLACEHOLDER_${imageIndex}]]`;
+            extractedImages.push({
+              id: `img_${imageIndex}`,
+              blob,
+              marker
+            });
+            imageIndex++;
+            return { src: marker };
+          });
+        })
+      };
+
+      // @ts-ignore
+      const htmlResult = await mammoth.convertToHtml({ arrayBuffer }, options);
+      let htmlText = htmlResult.value;
+      
+      let textWithMarkers = htmlText.replace(/<img[^>]+src="(\[\[IMAGE_PLACEHOLDER_\d+\]\]|%5B%5BIMAGE_PLACEHOLDER_\d+%5D%5D)"[^>]*>/g, (match, p1) => {
+        return `\n\n${decodeURIComponent(p1)}\n\n`;
+      });
+      
+      // Convert basic HTML to Markdown
+      textWithMarkers = textWithMarkers
+        .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
+        .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
+        .replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n')
+        .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
+        .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+        .replace(/<em>(.*?)<\/em>/g, '*$1*')
+        .replace(/<br\s*\/?>/g, '\n')
+        .replace(/<[^>]+>/g, ''); // Strip remaining HTML tags
+        
+      textWithMarkers = textWithMarkers.replace(/\n\s*\n/g, '\n\n');
+
+      showToast("Đang dùng AI định dạng công thức hóa học...");
+      let formattedText = textWithMarkers;
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const prompt = `Bạn là một chuyên gia Hóa học và định dạng văn bản. Hãy định dạng lại đoạn văn bản lý thuyết hóa học sau đây.
+        Yêu cầu QUAN TRỌNG:
+        - GIỮ NGUYÊN toàn bộ nội dung, cấu trúc, và các đánh dấu hình ảnh (ví dụ: [[IMAGE_PLACEHOLDER_1]]).
+        - CHỈ bổ sung định dạng LaTeX (sử dụng dấu $...$) cho TẤT CẢ các công thức hóa học, chất hóa học, phương trình hóa học, và ký hiệu toán học.
+        - Ví dụ: H2O -> $H_2O$, CO2 -> $CO_2$, Cu2+ -> $Cu^{2+}$, 2H2 + O2 -> 2H2O -> $2H_2 + O_2 \\rightarrow 2H_2O$.
+        - KHÔNG bọc kết quả trong block code markdown (như \`\`\`markdown). Trả về trực tiếp văn bản.
+        - KHÔNG thêm bất kỳ lời chào hay giải thích nào.
+
+        Văn bản cần định dạng:
+        ${textWithMarkers}`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.1-pro-preview",
+          contents: prompt,
+        });
+        
+        if (response.text) {
+          formattedText = response.text;
+          // Remove markdown code block if AI still added it
+          if (formattedText.startsWith('\`\`\`markdown')) {
+            formattedText = formattedText.replace(/^\`\`\`markdown\n/, '').replace(/\n\`\`\`$/, '');
+          } else if (formattedText.startsWith('\`\`\`')) {
+            formattedText = formattedText.replace(/^\`\`\`\n/, '').replace(/\n\`\`\`$/, '');
+          }
+        }
+      } catch (aiError) {
+        console.error("AI formatting error:", aiError);
+        showToast("Lỗi khi định dạng bằng AI. Đang sử dụng văn bản gốc.");
+      }
+
+      showToast("Đang tải ảnh lên...");
+      // Upload images
+      for (let i = 0; i < extractedImages.length; i++) {
+        const img = extractedImages[i];
+        const imageRef = ref(storage, `theories/images/${Date.now()}_${i}.png`);
+        await uploadBytes(imageRef, img.blob);
+        const url = await getDownloadURL(imageRef);
+        
+        const markdownImg = `\n\n![Hình ảnh](${url})\n\n`;
+        formattedText = formattedText.split(img.marker).join(markdownImg);
+      }
+
+      setCurrentTheory(prev => ({
+        ...prev,
+        content: prev?.content ? prev.content + '\n\n' + formattedText : formattedText,
+        title: prev?.title || file.name.replace(/\.[^/.]+$/, "")
+      }));
+
+      showToast("Đã tải lên và xử lý file Word thành công.");
+    } catch (error) {
+      console.error("Error processing Word file:", error);
+      showToast("Lỗi khi đọc file Word. Vui lòng thử lại.");
+    } finally {
+      setIsProcessingFile(false);
+      // Reset input
+      e.target.value = '';
     }
   };
 
@@ -286,12 +459,68 @@ export const AdminTheory: React.FC = () => {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Hình ảnh minh họa (tùy chọn)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={currentTheory.imageUrl || ''}
+                  onChange={(e) => setCurrentTheory({ ...currentTheory, imageUrl: e.target.value })}
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-teal-500"
+                  placeholder="Nhập URL hình ảnh..."
+                />
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageUpload(e)}
+                    disabled={uploadingImageId === 'main'}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
+                  <button
+                    disabled={uploadingImageId === 'main'}
+                    className="px-4 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 hover:bg-slate-700 flex items-center gap-2 disabled:opacity-50 transition-colors"
+                  >
+                    {uploadingImageId === 'main' ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ImagePlus className="w-4 h-4" />
+                    )}
+                    Tải ảnh lên
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* AI Generation Section */}
             <div className="bg-slate-900/50 p-4 rounded-lg border border-teal-500/30 space-y-4">
-              <label className="block text-sm font-medium text-teal-400 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" />
-                Tạo nội dung bằng AI
-              </label>
+              <div className="flex justify-between items-center">
+                <label className="block text-sm font-medium text-teal-400 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Tạo nội dung bằng AI hoặc Tải lên File Word
+                </label>
+                
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".docx"
+                    onChange={processWordFile}
+                    disabled={isProcessingFile}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
+                  <button
+                    disabled={isProcessingFile}
+                    className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-slate-600 text-sm"
+                  >
+                    {isProcessingFile ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {isProcessingFile ? 'Đang xử lý...' : 'Tải lên File Word (.docx)'}
+                  </button>
+                </div>
+              </div>
               
               <div className="flex gap-2">
                 <input
@@ -340,14 +569,255 @@ export const AdminTheory: React.FC = () => {
               </div>
             </div>
 
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-medium text-slate-400">Nội dung (Hỗ trợ Markdown & LaTeX)</label>
+              <button
+                onClick={async () => {
+                  if (!currentTheory.content) return;
+                  setIsGenerating(true);
+                  showToast("Đang dùng AI chuẩn hóa công thức hóa học...");
+                  try {
+                    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+                    const prompt = `Bạn là một chuyên gia Hóa học và định dạng văn bản. Hãy định dạng lại đoạn văn bản lý thuyết hóa học sau đây.
+                    Yêu cầu QUAN TRỌNG:
+                    - GIỮ NGUYÊN toàn bộ nội dung, cấu trúc, và các đánh dấu hình ảnh (ví dụ: [[IMAGE_PLACEHOLDER_1]]).
+                    - CHỈ bổ sung định dạng LaTeX (sử dụng dấu $...$) cho TẤT CẢ các công thức hóa học, chất hóa học, phương trình hóa học, và ký hiệu toán học.
+                    - Ví dụ: H2O -> $H_2O$, CO2 -> $CO_2$, Cu2+ -> $Cu^{2+}$, 2H2 + O2 -> 2H2O -> $2H_2 + O_2 \\rightarrow 2H_2O$.
+                    - KHÔNG bọc kết quả trong block code markdown (như \`\`\`markdown). Trả về trực tiếp văn bản.
+                    - KHÔNG thêm bất kỳ lời chào hay giải thích nào.
+
+                    Văn bản cần định dạng:
+                    ${currentTheory.content}`;
+
+                    const response = await ai.models.generateContent({
+                      model: "gemini-3.1-pro-preview",
+                      contents: prompt,
+                    });
+                    
+                    if (response.text) {
+                      let formattedText = response.text;
+                      // Remove markdown code block if AI still added it
+                      if (formattedText.startsWith('\`\`\`markdown')) {
+                        formattedText = formattedText.replace(/^\`\`\`markdown\n/, '').replace(/\n\`\`\`$/, '');
+                      } else if (formattedText.startsWith('\`\`\`')) {
+                        formattedText = formattedText.replace(/^\`\`\`\n/, '').replace(/\n\`\`\`$/, '');
+                      }
+                      setCurrentTheory(prev => ({ ...prev, content: formattedText }));
+                      showToast("Đã chuẩn hóa công thức thành công.");
+                    }
+                  } catch (error) {
+                    console.error("AI formatting error:", error);
+                    showToast("Lỗi khi chuẩn hóa bằng AI.");
+                  } finally {
+                    setIsGenerating(false);
+                  }
+                }}
+                disabled={isGenerating || !currentTheory.content}
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500/30 transition-colors text-xs font-bold disabled:opacity-50"
+              >
+                <Sparkles className="w-3 h-3" />
+                {isGenerating ? 'Đang xử lý...' : 'Chuẩn hóa công thức (AI)'}
+              </button>
+            </div>
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">Nội dung (Hỗ trợ Markdown & LaTeX)</label>
               <textarea
                 value={currentTheory.content || ''}
                 onChange={(e) => setCurrentTheory({ ...currentTheory, content: e.target.value })}
                 className="w-full h-96 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-teal-500 font-mono text-sm custom-scrollbar"
                 placeholder="Nhập nội dung lý thuyết..."
               />
+            </div>
+
+            {/* Sections */}
+            <div className="space-y-4 pt-4 border-t border-slate-700">
+              <div className="flex justify-between items-center">
+                <label className="block text-sm font-medium text-slate-400">Các phần nội dung chi tiết</label>
+                <button
+                  onClick={() => {
+                    setCurrentTheory(prev => ({
+                      ...prev,
+                      sections: [...(prev?.sections || []), { id: Date.now().toString(), title: '', content: '', imageUrl: '' }]
+                    }));
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors text-xs font-bold"
+                >
+                  <Plus className="w-3 h-3" />
+                  Thêm phần nội dung
+                </button>
+              </div>
+
+              {currentTheory.sections?.map((section, index) => (
+                <div key={section.id} className="bg-slate-900/50 p-4 rounded-lg border border-slate-700 space-y-4 relative">
+                  <div className="absolute top-4 right-4 flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (index === 0) return;
+                        setCurrentTheory(prev => {
+                          if (!prev?.sections) return prev;
+                          const newSections = [...prev.sections];
+                          const temp = newSections[index - 1];
+                          newSections[index - 1] = newSections[index];
+                          newSections[index] = temp;
+                          return { ...prev, sections: newSections };
+                        });
+                      }}
+                      disabled={index === 0}
+                      className="text-slate-500 hover:text-teal-400 transition-colors disabled:opacity-30 disabled:hover:text-slate-500"
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (index === (currentTheory.sections?.length || 0) - 1) return;
+                        setCurrentTheory(prev => {
+                          if (!prev?.sections) return prev;
+                          const newSections = [...prev.sections];
+                          const temp = newSections[index + 1];
+                          newSections[index + 1] = newSections[index];
+                          newSections[index] = temp;
+                          return { ...prev, sections: newSections };
+                        });
+                      }}
+                      disabled={index === (currentTheory.sections?.length || 0) - 1}
+                      className="text-slate-500 hover:text-teal-400 transition-colors disabled:opacity-30 disabled:hover:text-slate-500"
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentTheory(prev => ({
+                          ...prev,
+                          sections: prev?.sections?.filter(s => s.id !== section.id)
+                        }));
+                      }}
+                      className="text-slate-500 hover:text-rose-400 transition-colors ml-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <h4 className="text-white font-bold text-sm">Phần {index + 1}</h4>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Tiêu đề phần (tùy chọn)</label>
+                    <input
+                      type="text"
+                      value={section.title || ''}
+                      onChange={(e) => {
+                        setCurrentTheory(prev => ({
+                          ...prev,
+                          sections: prev?.sections?.map(s => s.id === section.id ? { ...s, title: e.target.value } : s)
+                        }));
+                      }}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-teal-500 text-sm"
+                      placeholder="Nhập tiêu đề cho phần này..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Hình ảnh phần này (tùy chọn)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={section.imageUrl || ''}
+                        onChange={(e) => {
+                          setCurrentTheory(prev => ({
+                            ...prev,
+                            sections: prev?.sections?.map(s => s.id === section.id ? { ...s, imageUrl: e.target.value } : s)
+                          }));
+                        }}
+                        className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-teal-500 text-sm"
+                        placeholder="Nhập URL hình ảnh..."
+                      />
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageUpload(e, section.id)}
+                          disabled={uploadingImageId === section.id}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <button
+                          disabled={uploadingImageId === section.id}
+                          className="px-3 py-2 bg-slate-800 text-white rounded-lg border border-slate-700 hover:bg-slate-700 flex items-center gap-2 disabled:opacity-50 transition-colors text-sm"
+                        >
+                          {uploadingImageId === section.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ImagePlus className="w-4 h-4" />
+                          )}
+                          Tải ảnh
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-medium text-slate-500">Nội dung</label>
+                      <button
+                        onClick={async () => {
+                          if (!section.content) return;
+                          setIsGenerating(true);
+                          showToast("Đang dùng AI chuẩn hóa công thức hóa học...");
+                          try {
+                            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+                            const prompt = `Bạn là một chuyên gia Hóa học và định dạng văn bản. Hãy định dạng lại đoạn văn bản lý thuyết hóa học sau đây.
+                            Yêu cầu QUAN TRỌNG:
+                            - GIỮ NGUYÊN toàn bộ nội dung, cấu trúc, và các đánh dấu hình ảnh.
+                            - CHỈ bổ sung định dạng LaTeX (sử dụng dấu $...$) cho TẤT CẢ các công thức hóa học, chất hóa học, phương trình hóa học, và ký hiệu toán học.
+                            - KHÔNG bọc kết quả trong block code markdown. Trả về trực tiếp văn bản.
+                            - KHÔNG thêm bất kỳ lời chào hay giải thích nào.
+
+                            Văn bản cần định dạng:
+                            ${section.content}`;
+
+                            const response = await ai.models.generateContent({
+                              model: "gemini-3.1-pro-preview",
+                              contents: prompt,
+                            });
+                            
+                            if (response.text) {
+                              let formattedText = response.text;
+                              if (formattedText.startsWith('```markdown')) {
+                                formattedText = formattedText.replace(/^```markdown\n/, '').replace(/\n```$/, '');
+                              } else if (formattedText.startsWith('```')) {
+                                formattedText = formattedText.replace(/^```\n/, '').replace(/\n```$/, '');
+                              }
+                              setCurrentTheory(prev => ({
+                                ...prev,
+                                sections: prev?.sections?.map(s => s.id === section.id ? { ...s, content: formattedText } : s)
+                              }));
+                              showToast("Đã chuẩn hóa công thức thành công.");
+                            }
+                          } catch (error) {
+                            console.error("AI formatting error:", error);
+                            showToast("Lỗi khi chuẩn hóa bằng AI.");
+                          } finally {
+                            setIsGenerating(false);
+                          }
+                        }}
+                        disabled={isGenerating || !section.content}
+                        className="flex items-center gap-1 px-2 py-1 bg-indigo-500/20 text-indigo-400 rounded hover:bg-indigo-500/30 transition-colors text-[10px] font-bold disabled:opacity-50"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        Chuẩn hóa (AI)
+                      </button>
+                    </div>
+                    <textarea
+                      value={section.content || ''}
+                      onChange={(e) => {
+                        setCurrentTheory(prev => ({
+                          ...prev,
+                          sections: prev?.sections?.map(s => s.id === section.id ? { ...s, content: e.target.value } : s)
+                        }));
+                      }}
+                      className="w-full h-48 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-teal-500 font-mono text-sm custom-scrollbar"
+                      placeholder="Nhập nội dung cho phần này..."
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
             
             <div className="flex justify-end gap-3 pt-4">
@@ -396,7 +866,7 @@ export const AdminTheory: React.FC = () => {
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(theory.id)}
+                    onClick={() => setShowConfirmDelete(theory.id)}
                     className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-400/10 rounded-lg transition-colors"
                     title="Xóa"
                   >
@@ -404,15 +874,65 @@ export const AdminTheory: React.FC = () => {
                   </button>
                 </div>
               </div>
+              {theory.imageUrl && (
+                <img src={theory.imageUrl} alt={theory.title} className="w-full h-32 object-cover rounded-lg mb-4" referrerPolicy="no-referrer" />
+              )}
               <div className="prose prose-invert prose-teal max-w-none max-h-64 overflow-y-auto custom-scrollbar pr-2">
                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                   {theory.content}
                 </ReactMarkdown>
+                {theory.sections && theory.sections.length > 0 && (
+                  <div className="mt-6 space-y-6 border-t border-slate-700 pt-6">
+                    {theory.sections.map((section, idx) => (
+                      <div key={section.id} className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
+                        <h4 className="text-sm font-bold text-slate-400 mb-3">{section.title || `Phần ${idx + 1}`}</h4>
+                        {section.imageUrl && (
+                          <img src={section.imageUrl} alt={section.title || `Phần ${idx + 1}`} className="w-full max-h-48 object-cover rounded-lg mb-4" referrerPolicy="no-referrer" />
+                        )}
+                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                          {section.content}
+                        </ReactMarkdown>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showConfirmDelete && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl p-6 max-w-sm w-full border border-slate-700 shadow-2xl">
+            <h3 className="text-xl font-bold text-white mb-2">Xác nhận xóa</h3>
+            <p className="text-slate-300 mb-6">Bạn có chắc chắn muốn xóa lý thuyết này? Hành động này không thể hoàn tác.</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConfirmDelete(null)}
+                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors font-bold"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleDelete(showConfirmDelete)}
+                className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors font-bold"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 z-50 animate-in slide-in-from-bottom-5">
+          <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 };
