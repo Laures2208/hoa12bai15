@@ -722,6 +722,8 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
   const [allowReview, setAllowReview] = useState(true);
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
+  const [exitCount, setExitCount] = useState(0);
+  const [autoSubmitPending, setAutoSubmitPending] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const awayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autoNextTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -982,6 +984,9 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
         
         console.log('Results submitted successfully');
       }
+      
+      const progressKey = `exam_progress_${currentExam?.id}_${info.name}_${info.studentClass}`;
+      localStorage.removeItem(progressKey);
     } catch (err) {
       console.error('Error submitting results:', err);
     } finally {
@@ -1016,6 +1021,67 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
   useEffect(() => {
     handleFinishQuizRef.current = handleFinishQuiz;
   }, [handleFinishQuiz]);
+
+  useEffect(() => {
+    if (autoSubmitPending && preparedQuestions.length > 0 && currentExam) {
+      handleFinishQuiz();
+      setAutoSubmitPending(false);
+    }
+  }, [autoSubmitPending, preparedQuestions, currentExam]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (examStarted && currentExam && !quizFinished) {
+        const progressKey = `exam_progress_${currentExam.id}_${studentInfo?.name}_${studentInfo?.studentClass}`;
+        const isLimited = currentExam.type === 'Bài thi' || currentExam.type === 'Bài kiểm tra';
+        const newExitCount = isLimited ? exitCount + 1 : exitCount;
+        const progress = {
+          preparedQuestions,
+          answers: answersRef.current,
+          timeLeft: timeLeftRef.current,
+          currentStep,
+          exitCount: newExitCount,
+          forceSubmit: isLimited ? newExitCount > 2 : false
+        };
+        localStorage.setItem(progressKey, JSON.stringify(progress));
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [examStarted, currentExam, quizFinished, preparedQuestions, currentStep, exitCount, studentInfo]);
+
+  const handleSaveAndExit = () => {
+    const isLimited = currentExam?.type === 'Bài thi' || currentExam?.type === 'Bài kiểm tra';
+    
+    if (isLimited && exitCount >= 2) {
+      alert("Bạn đã hết số lần lưu và thoát (tối đa 2 lần). Bài thi sẽ được tự động nộp.");
+      handleFinishQuiz();
+      return;
+    }
+    
+    const confirmMessage = isLimited 
+      ? `Bạn có chắc chắn muốn lưu và thoát? Bạn còn ${2 - exitCount} lần thoát.`
+      : `Bạn có chắc chắn muốn lưu và thoát? Bạn có thể tiếp tục làm bài tập này sau.`;
+      
+    if (window.confirm(confirmMessage)) {
+      const progressKey = `exam_progress_${currentExam?.id}_${studentInfo?.name}_${studentInfo?.studentClass}`;
+      const progress = {
+        preparedQuestions,
+        answers,
+        timeLeft,
+        currentStep,
+        exitCount: isLimited ? exitCount + 1 : exitCount
+      };
+      localStorage.setItem(progressKey, JSON.stringify(progress));
+      
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(err => console.error(err));
+      }
+      
+      setExamStarted(false);
+      setCurrentExam(null);
+    }
+  };
 
   const checkAndConfirmSubmit = () => {
     const unanswered = preparedQuestions
@@ -1089,7 +1155,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
     });
   };
 
-  const handleStartExam = async (exam: Exam) => {
+  const handleStartExam = async (exam: Exam, resume?: boolean) => {
     setCurrentExam(exam);
     const isEnabled = exam.antiCheat;
     
@@ -1108,9 +1174,56 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
         console.warn("Trình duyệt không hỗ trợ API toàn màn hình.");
       }
     }
-    const questions = generateExam(exam);
-    setPreparedQuestions(questions);
-    setTimeLeft(exam.timeLimit * 60);
+    const progressKey = `exam_progress_${exam.id}_${studentInfo?.name}_${studentInfo?.studentClass}`;
+    const savedStr = localStorage.getItem(progressKey);
+    
+    if (savedStr) {
+      const saved = JSON.parse(savedStr);
+      if (saved.forceSubmit && (exam.type === 'Bài thi' || exam.type === 'Bài kiểm tra')) {
+        alert("Bạn đã vượt quá số lần thoát cho phép. Bài thi đã được tự động nộp.");
+        setPreparedQuestions(saved.preparedQuestions);
+        setAnswers(saved.answers);
+        answersRef.current = saved.answers;
+        setTimeLeft(saved.timeLeft);
+        timeLeftRef.current = saved.timeLeft;
+        setCurrentStep(saved.currentStep);
+        setExitCount(saved.exitCount);
+        setExamStarted(true);
+        setQuizFinished(false);
+        setAutoSubmitPending(true);
+        localStorage.removeItem(progressKey);
+        return;
+      } else {
+        const shouldResume = resume !== undefined ? resume : window.confirm(`Bạn có bài làm đang dang dở. Bạn có muốn tiếp tục không? ${exam.type === 'Bài thi' || exam.type === 'Bài kiểm tra' ? `(Số lần thoát còn lại: ${2 - saved.exitCount})` : ''}`);
+        if (shouldResume) {
+          setPreparedQuestions(saved.preparedQuestions);
+          setAnswers(saved.answers);
+          answersRef.current = saved.answers;
+          setTimeLeft(saved.timeLeft);
+          timeLeftRef.current = saved.timeLeft;
+          setCurrentStep(saved.currentStep);
+          setExitCount(saved.exitCount);
+        } else {
+          localStorage.removeItem(progressKey);
+          const questions = generateExam(exam);
+          setPreparedQuestions(questions);
+          setTimeLeft(exam.timeLimit * 60);
+          setAnswers([]);
+          answersRef.current = [];
+          setCurrentStep(0);
+          setExitCount(0);
+        }
+      }
+    } else {
+      const questions = generateExam(exam);
+      setPreparedQuestions(questions);
+      setTimeLeft(exam.timeLimit * 60);
+      setAnswers([]);
+      answersRef.current = [];
+      setCurrentStep(0);
+      setExitCount(0);
+    }
+
     setExamStarted(true);
     setFullScreenViolations(0);
     setShowFullScreenWarning(false);
@@ -1419,15 +1532,25 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                 <span className="text-teal-600 dark:text-teal-500 font-bold block text-lg md:text-xl">Bài thi: {currentExam?.title || 'Luyện Kim Thuật'}</span>
                 <span className="text-slate-500 dark:text-slate-400 text-xs">Thời gian: {currentExam?.timeLimit} phút</span>
               </div>
-              <div className="flex flex-col items-end">
-                <div className={cn(
-                  "flex items-center gap-2 font-black text-lg",
-                  timeLeft < 60 ? "text-red-500 animate-pulse" : "text-teal-600 dark:text-teal-500"
-                )}>
-                  <Clock className="w-5 h-5" />
-                  {formatTime(timeLeft)}
+              <div className="flex items-center gap-6">
+                <button
+                  onClick={handleSaveAndExit}
+                  className="px-4 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold rounded-xl hover:bg-amber-500/20 transition-colors border border-amber-500/20 flex items-center gap-2 text-sm"
+                  title={(currentExam?.type === 'Bài thi' || currentExam?.type === 'Bài kiểm tra') ? `Bạn còn ${2 - exitCount} lần thoát` : `Lưu và thoát (không giới hạn)`}
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Lưu & Thoát</span>
+                </button>
+                <div className="flex flex-col items-end">
+                  <div className={cn(
+                    "flex items-center gap-2 font-black text-lg",
+                    timeLeft < 60 ? "text-red-500 animate-pulse" : "text-teal-600 dark:text-teal-500"
+                  )}>
+                    <Clock className="w-5 h-5" />
+                    {formatTime(timeLeft)}
+                  </div>
+                  <span className="text-slate-500 dark:text-slate-400 text-xs font-bold">Câu {currentStep + 1}/{preparedQuestions.length}</span>
                 </div>
-                <span className="text-slate-500 dark:text-slate-400 text-xs font-bold">Câu {currentStep + 1}/{preparedQuestions.length}</span>
               </div>
             </div>
 
@@ -1852,7 +1975,7 @@ const AdminPortal = () => {
         )}>
           <Table className="text-teal-500" />
           Quản trị Hệ thống (Giáo viên)
-          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 ml-2">v1.5.2</span>
+          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 ml-2">v1.5.3</span>
         </h2>
         <div className="flex items-center gap-4 flex-wrap">
           <button 
@@ -3260,7 +3383,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
             © 2024 Metallurgy Learning Platform. Thiết kế cho giáo dục hiện đại.
           </p>
           <p className="text-slate-500 dark:text-slate-400 text-xs mt-2 font-mono">
-            Phiên bản 1.5.2
+            Phiên bản 1.5.3
           </p>
         </div>
       </footer>

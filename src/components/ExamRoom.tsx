@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { BookOpen, Clock, Shield, Plus, X, Award, Target, TrendingUp, TrendingDown, Activity, PlayCircle, Calendar, Search, Pencil, Trash2, AlertTriangle, CheckCircle2, FileText, ChevronDown, ChevronUp, Lock, Unlock, Zap, Sun } from 'lucide-react';
+import { BookOpen, Clock, Shield, Plus, X, Award, Target, TrendingUp, TrendingDown, Activity, PlayCircle, Calendar, Search, Pencil, Trash2, AlertTriangle, CheckCircle2, FileText, ChevronDown, ChevronUp, Lock, Unlock, Zap, Sun, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -71,7 +71,7 @@ interface Result {
 interface ExamRoomProps {
   isAdmin?: boolean;
   studentInfo?: { name: string; studentClass: string };
-  onTakeExam?: (exam: Exam) => void;
+  onTakeExam?: (exam: Exam, resume?: boolean) => void;
   onOpenProfile?: () => void;
 }
 
@@ -260,7 +260,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
     }
   };
 
-  const handleTakeExam = (exam: Exam) => {
+  const handleTakeExam = (exam: Exam, resume?: boolean) => {
     // Check if exam is closed
     if (exam.isOpen === false) {
       alert('Bài thi này hiện đang đóng.');
@@ -297,7 +297,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
     }
 
     if (onTakeExam) {
-      onTakeExam(exam);
+      onTakeExam(exam, resume);
     }
   };
 
@@ -816,15 +816,55 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                 </div>
 
                 {!isAdmin ? (
-                  <div className="mt-4 sm:mt-0 flex-shrink-0">
-                    <button 
-                      onClick={() => handleTakeExam(exam)}
-                      disabled={exam.isOpen === false}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-800 hover:bg-teal-500 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(20,184,166,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-800 disabled:group-hover:shadow-none"
-                    >
-                      <PlayCircle className="w-5 h-5" />
-                      LÀM BÀI
-                    </button>
+                  <div className="mt-4 sm:mt-0 flex-shrink-0 flex gap-2">
+                    {(() => {
+                      const progressKey = `exam_progress_${exam.id}_${studentInfo?.name}_${studentInfo?.studentClass}`;
+                      const savedStr = localStorage.getItem(progressKey);
+                      const hasProgress = savedStr !== null;
+                      
+                      if (hasProgress) {
+                        const saved = JSON.parse(savedStr);
+                        const isForceSubmit = saved.forceSubmit && (exam.type === 'Bài thi' || exam.type === 'Bài kiểm tra');
+                        
+                        return (
+                          <>
+                            <button 
+                              onClick={() => handleTakeExam(exam, true)}
+                              disabled={exam.isOpen === false}
+                              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-3 rounded-xl font-bold transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-500 disabled:group-hover:shadow-none"
+                            >
+                              <PlayCircle className="w-5 h-5" />
+                              LÀM TIẾP
+                            </button>
+                            {!isForceSubmit && (
+                              <button 
+                                onClick={() => {
+                                  if (window.confirm("Bạn có chắc chắn muốn làm lại từ đầu? Mọi tiến trình đã lưu sẽ bị xóa.")) {
+                                    handleTakeExam(exam, false);
+                                  }
+                                }}
+                                disabled={exam.isOpen === false}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-800 hover:bg-teal-500 text-white px-4 py-3 rounded-xl font-bold transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(20,184,166,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-800 disabled:group-hover:shadow-none"
+                              >
+                                <RefreshCw className="w-5 h-5" />
+                                LÀM LẠI
+                              </button>
+                            )}
+                          </>
+                        );
+                      }
+                      
+                      return (
+                        <button 
+                          onClick={() => handleTakeExam(exam)}
+                          disabled={exam.isOpen === false}
+                          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-800 hover:bg-teal-500 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(20,184,166,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-800 disabled:group-hover:shadow-none"
+                        >
+                          <PlayCircle className="w-5 h-5" />
+                          LÀM BÀI
+                        </button>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div className="mt-4 sm:mt-0 flex-shrink-0 flex gap-2">
