@@ -48,6 +48,12 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    // Exam Progress
+    match /exam_progress/{progressId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
     // Announcements
     match /announcements/{announcementId} {
       allow read: if isAuthenticated();

@@ -78,6 +78,7 @@ interface ExamRoomProps {
 export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo, onTakeExam, onOpenProfile }) => {
   const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<Result[]>([]);
+  const [progresses, setProgresses] = useState<Record<string, any>>({});
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -141,6 +142,27 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
         }
       });
       setResults(resultData);
+    });
+    return () => unsubscribe();
+  }, [studentInfo, isAdmin]);
+
+  // Fetch Progresses
+  useEffect(() => {
+    if (!studentInfo || isAdmin) return;
+    
+    const q = query(
+      collection(db, 'exam_progress'),
+      where('studentName', '==', studentInfo.name),
+      where('studentClass', '==', studentInfo.studentClass)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const progressData: Record<string, any> = {};
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        progressData[data.examId] = data;
+      });
+      setProgresses(progressData);
     });
     return () => unsubscribe();
   }, [studentInfo, isAdmin]);
@@ -819,11 +841,14 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                   <div className="mt-4 sm:mt-0 flex-shrink-0 flex gap-2">
                     {(() => {
                       const progressKey = `exam_progress_${exam.id}_${studentInfo?.name}_${studentInfo?.studentClass}`;
-                      const savedStr = localStorage.getItem(progressKey);
-                      const hasProgress = savedStr !== null;
+                      const localSavedStr = localStorage.getItem(progressKey);
+                      const localSaved = localSavedStr ? JSON.parse(localSavedStr) : null;
+                      
+                      // Use Firestore progress if available, otherwise fallback to local progress
+                      const saved = progresses[exam.id] || localSaved;
+                      const hasProgress = !!saved;
                       
                       if (hasProgress) {
-                        const saved = JSON.parse(savedStr);
                         const isForceSubmit = saved.forceSubmit && (exam.type === 'Bài thi' || exam.type === 'Bài kiểm tra');
                         
                         return (

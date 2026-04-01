@@ -987,6 +987,11 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
       
       const progressKey = `exam_progress_${currentExam?.id}_${info.name}_${info.studentClass}`;
       localStorage.removeItem(progressKey);
+      try {
+        await deleteDoc(doc(db, 'exam_progress', progressKey));
+      } catch (err) {
+        console.error("Error deleting progress from Firestore:", err);
+      }
     } catch (err) {
       console.error('Error submitting results:', err);
     } finally {
@@ -1044,13 +1049,22 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
           forceSubmit: isLimited ? newExitCount > 2 : false
         };
         localStorage.setItem(progressKey, JSON.stringify(progress));
+        
+        // Attempt to save to Firestore (fire-and-forget)
+        setDoc(doc(db, 'exam_progress', progressKey), {
+          ...progress,
+          examId: currentExam.id,
+          studentName: studentInfo?.name,
+          studentClass: studentInfo?.studentClass,
+          updatedAt: serverTimestamp()
+        }).catch(err => console.error("Error saving progress to Firestore on unload:", err));
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [examStarted, currentExam, quizFinished, preparedQuestions, currentStep, exitCount, studentInfo]);
 
-  const handleSaveAndExit = () => {
+  const handleSaveAndExit = async () => {
     const isLimited = currentExam?.type === 'Bài thi' || currentExam?.type === 'Bài kiểm tra';
     
     if (isLimited && exitCount >= 2) {
@@ -1070,9 +1084,25 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
         answers,
         timeLeft,
         currentStep,
-        exitCount: isLimited ? exitCount + 1 : exitCount
+        exitCount: isLimited ? exitCount + 1 : exitCount,
+        forceSubmit: false
       };
+      
+      // Save to localStorage as fallback
       localStorage.setItem(progressKey, JSON.stringify(progress));
+      
+      // Save to Firestore
+      try {
+        await setDoc(doc(db, 'exam_progress', progressKey), {
+          ...progress,
+          examId: currentExam?.id,
+          studentName: studentInfo?.name,
+          studentClass: studentInfo?.studentClass,
+          updatedAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.error("Error saving progress to Firestore:", err);
+      }
       
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(err => console.error(err));
@@ -1175,10 +1205,25 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
       }
     }
     const progressKey = `exam_progress_${exam.id}_${studentInfo?.name}_${studentInfo?.studentClass}`;
-    const savedStr = localStorage.getItem(progressKey);
+    let saved = null;
     
-    if (savedStr) {
-      const saved = JSON.parse(savedStr);
+    try {
+      const progressDoc = await getDoc(doc(db, 'exam_progress', progressKey));
+      if (progressDoc.exists()) {
+        saved = progressDoc.data();
+      }
+    } catch (err) {
+      console.error("Error fetching progress from Firestore:", err);
+    }
+    
+    if (!saved) {
+      const savedStr = localStorage.getItem(progressKey);
+      if (savedStr) {
+        saved = JSON.parse(savedStr);
+      }
+    }
+    
+    if (saved) {
       if (saved.forceSubmit && (exam.type === 'Bài thi' || exam.type === 'Bài kiểm tra')) {
         alert("Bạn đã vượt quá số lần thoát cho phép. Bài thi đã được tự động nộp.");
         setPreparedQuestions(saved.preparedQuestions);
@@ -1192,6 +1237,11 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
         setQuizFinished(false);
         setAutoSubmitPending(true);
         localStorage.removeItem(progressKey);
+        try {
+          await deleteDoc(doc(db, 'exam_progress', progressKey));
+        } catch (err) {
+          console.error("Error deleting progress from Firestore:", err);
+        }
         return;
       } else {
         const shouldResume = resume !== undefined ? resume : window.confirm(`Bạn có bài làm đang dang dở. Bạn có muốn tiếp tục không? ${exam.type === 'Bài thi' || exam.type === 'Bài kiểm tra' ? `(Số lần thoát còn lại: ${2 - saved.exitCount})` : ''}`);
@@ -1205,6 +1255,11 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
           setExitCount(saved.exitCount);
         } else {
           localStorage.removeItem(progressKey);
+          try {
+            await deleteDoc(doc(db, 'exam_progress', progressKey));
+          } catch (err) {
+            console.error("Error deleting progress from Firestore:", err);
+          }
           const questions = generateExam(exam);
           setPreparedQuestions(questions);
           setTimeLeft(exam.timeLimit * 60);
