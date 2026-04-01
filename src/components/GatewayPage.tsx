@@ -443,7 +443,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
             </div>
             <div className="text-center md:text-right">
               <h1 className="text-2xl font-black tracking-tighter text-white glow-sparkle">
-                LUYỆN KIM THUẬT
+                CHEMISTRY THEORY & QUIZZ
               </h1>
               <p className="text-sm text-teal-500/80 italic mt-1 font-medium tracking-wide">
                 "Hợp chất đồng nhất, điểm số nghịch biến"
@@ -697,7 +697,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                 Hệ thống yêu cầu xác thực để lưu trữ kết quả học tập.
               </p>
               <p className="text-[10px] text-slate-600 font-mono mt-1">
-                Phiên bản 1.5.3
+                Phiên bản 1.5.4
               </p>
             </div>
             <button

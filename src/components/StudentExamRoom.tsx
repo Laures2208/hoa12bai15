@@ -192,7 +192,7 @@ export const StudentExamRoom: React.FC = () => {
               {exam.title}
             </h1>
             <p className="text-[10px] font-bold text-teal-500/70 tracking-[0.2em] uppercase">
-              {exam.category || 'LUYỆN KIM THUẬT'}
+              {exam.category || 'CHEMISTRY THEORY & QUIZZ'}
             </p>
           </div>
         </div>

@@ -1584,7 +1584,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
           <div>
             <div className="flex justify-between items-center mb-8">
               <div>
-                <span className="text-teal-600 dark:text-teal-500 font-bold block text-lg md:text-xl">Bài thi: {currentExam?.title || 'Luyện Kim Thuật'}</span>
+                <span className="text-teal-600 dark:text-teal-500 font-bold block text-lg md:text-xl">Bài thi: {currentExam?.title || 'Chemistry Theory & Quizz'}</span>
                 <span className="text-slate-500 dark:text-slate-400 text-xs">Thời gian: {currentExam?.timeLimit} phút</span>
               </div>
               <div className="flex items-center gap-6">
@@ -2030,7 +2030,7 @@ const AdminPortal = () => {
         )}>
           <Table className="text-teal-500" />
           Quản trị Hệ thống (Giáo viên)
-          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 ml-2">v1.5.3</span>
+          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 ml-2">v1.5.4</span>
         </h2>
         <div className="flex items-center gap-4 flex-wrap">
           <button 
@@ -3246,7 +3246,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               <span className={cn(
                 "text-lg md:text-xl font-black tracking-tighter hidden sm:block",
                 "text-white"
-              )}>LUYỆN KIM THUẬT</span>
+              )}>CHEMISTRY THEORY & QUIZZ</span>
             </div>
           </div>
           
@@ -3432,13 +3432,13 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-center gap-2 mb-6">
             <Layers className="w-6 h-6 text-teal-600 dark:text-teal-500" />
-            <span className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">LUYỆN KIM THUẬT</span>
+            <span className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">CHEMISTRY THEORY & QUIZZ</span>
           </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm">
             © 2024 Metallurgy Learning Platform. Thiết kế cho giáo dục hiện đại.
           </p>
           <p className="text-slate-500 dark:text-slate-400 text-xs mt-2 font-mono">
-            Phiên bản 1.5.3
+            Phiên bản 1.5.4
           </p>
         </div>
       </footer>

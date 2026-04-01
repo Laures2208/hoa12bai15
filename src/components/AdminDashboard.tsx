@@ -236,7 +236,7 @@ export const AdminDashboard: React.FC = () => {
             role: "user",
             parts: [
               {
-                text: `Bạn là một chuyên gia Hóa học 12. Hãy soạn một đề thi mới bám sát chương trình Hóa 12 cho dự án 'LUYỆN KIM THUẬT'.
+                text: `Bạn là một chuyên gia Hóa học 12. Hãy soạn một đề thi mới bám sát chương trình Hóa 12 cho dự án 'CHEMISTRY THEORY & QUIZZ'.
                 ${aiPromptContent.trim() ? `\nNội dung tham khảo/yêu cầu cụ thể từ người dùng:\n"""\n${aiPromptContent}\n"""\n` : ''}
                 Ma trận đề thi:
                 - Phần I: ${matrix.multipleChoice} câu trắc nghiệm (4 lựa chọn).
@@ -397,7 +397,7 @@ export const AdminDashboard: React.FC = () => {
             <LayoutDashboard className="w-6 h-6 text-teal-400" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-white tracking-tight uppercase">LUYỆN KIM THUẬT</h1>
+            <h1 className="text-xl font-black text-white tracking-tight uppercase">CHEMISTRY THEORY & QUIZZ</h1>
             <p className="text-[10px] font-bold text-teal-500/70 tracking-[0.2em] uppercase">Admin Command Center</p>
           </div>
         </div>
