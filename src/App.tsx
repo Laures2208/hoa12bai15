@@ -958,8 +958,20 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
             where('studentClass', '==', info.studentClass)
           );
           const existingResults = await getDocs(q);
-          if (!existingResults.empty) {
-            console.log('Result already exists, skipping submission.');
+          const unretakableResults = existingResults.docs.filter(doc => !doc.data().canRetake);
+          
+          if (unretakableResults.length > 0) {
+            console.log('Result already exists and cannot be retaken, skipping submission.');
+            
+            // Still need to clean up progress if they somehow got here
+            const progressKey = `exam_progress_${currentExam?.id}_${info.name}_${info.studentClass}`;
+            localStorage.removeItem(progressKey);
+            try {
+              await deleteDoc(doc(db, 'exam_progress', progressKey));
+            } catch (err) {
+              console.error("Error deleting progress from Firestore:", err);
+            }
+            
             setIsSubmitting(false);
             setQuizFinished(true);
             return;
@@ -1467,16 +1479,18 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                       const isCorrect = subAns === sq.answer;
                       return (
                         <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="text-base font-medium text-slate-800 dark:text-slate-100 flex-1">
-                            <span className="text-teal-500 font-bold mr-2">{String.fromCharCode(97 + i)})</span>
-                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                              {fixLatex(sq.content || sq.text || '')}
-                            </ReactMarkdown>
+                          <div className="text-base font-medium text-slate-800 dark:text-slate-100 flex-1 flex items-start">
+                            <span className="text-teal-500 font-bold mr-2 mt-1">{String.fromCharCode(97 + i)})</span>
+                            <div className="flex-1">
+                              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                {fixLatex(sq.content || sq.text || '')}
+                              </ReactMarkdown>
+                            </div>
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="flex bg-slate-200 dark:bg-slate-900 p-1 rounded-xl">
-                              <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Đúng' ? "bg-emerald-500 text-white" : "text-slate-500")}>Đúng</div>
-                              <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Sai' ? "bg-rose-500 text-white" : "text-slate-500")}>Sai</div>
+                              <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Đúng' ? "bg-emerald-500 text-white" : "text-slate-700 dark:text-slate-800")}>Đúng</div>
+                              <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Sai' ? "bg-rose-500 text-white" : "text-slate-700 dark:text-slate-800")}>Sai</div>
                             </div>
                             {showAnswers && (
                               <div className={cn("text-xs font-bold px-3 py-1 rounded-full", isCorrect ? "bg-emerald-500/20 text-emerald-500" : "bg-rose-500/20 text-rose-500")}>
@@ -1672,31 +1686,33 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                     const subAns = (savedAnswer as any)?.subAnswers?.[i];
                     return (
                       <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="text-base font-medium text-slate-800 dark:text-slate-100 flex-1">
-                          <span className="text-teal-500 font-bold mr-2">{String.fromCharCode(97 + i)})</span>
-                          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                            {fixLatex(sq.content || sq.text || '')}
-                          </ReactMarkdown>
+                        <div className="text-base font-medium text-slate-900 dark:text-slate-100 flex-1 flex items-start">
+                          <span className="text-teal-500 font-bold mr-2 mt-1">{String.fromCharCode(97 + i)})</span>
+                          <div className="flex-1">
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                              {fixLatex(sq.content || sq.text || '')}
+                            </ReactMarkdown>
+                          </div>
                         </div>
                         <div className="flex bg-slate-200 dark:bg-slate-900 p-1 rounded-xl">
-                          <button
-                            onClick={() => handleTrueFalseAnswer(i, 'Đúng')}
-                            className={cn(
-                              "px-5 py-2 rounded-xl text-sm font-bold transition-all",
-                              subAns === 'Đúng' ? "bg-emerald-500 text-white shadow-md" : "text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-700"
-                            )}
-                          >
-                            Đúng
-                          </button>
-                          <button
-                            onClick={() => handleTrueFalseAnswer(i, 'Sai')}
-                            className={cn(
-                              "px-5 py-2 rounded-xl text-sm font-bold transition-all",
-                              subAns === 'Sai' ? "bg-rose-500 text-white shadow-md" : "text-slate-500 hover:bg-slate-300 dark:hover:bg-slate-700"
-                            )}
-                          >
-                            Sai
-                          </button>
+                              <button
+                                onClick={() => handleTrueFalseAnswer(i, 'Đúng')}
+                                className={cn(
+                                  "px-5 py-2 rounded-xl text-sm font-bold transition-all",
+                                  subAns === 'Đúng' ? "bg-emerald-500 text-white shadow-md" : "text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700"
+                                )}
+                              >
+                                Đúng
+                              </button>
+                              <button
+                                onClick={() => handleTrueFalseAnswer(i, 'Sai')}
+                                className={cn(
+                                  "px-5 py-2 rounded-xl text-sm font-bold transition-all",
+                                  subAns === 'Sai' ? "bg-rose-500 text-white shadow-md" : "text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700"
+                                )}
+                              >
+                                Sai
+                              </button>
                         </div>
                       </div>
                     );
