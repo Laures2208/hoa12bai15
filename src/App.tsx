@@ -1489,8 +1489,8 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="flex bg-slate-200 dark:bg-slate-900 p-1 rounded-xl">
-                              <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Đúng' ? "bg-emerald-500 text-white" : "text-slate-700 dark:text-slate-800")}>Đúng</div>
-                              <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Sai' ? "bg-rose-500 text-white" : "text-slate-700 dark:text-slate-800")}>Sai</div>
+                              <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Đúng' ? "bg-emerald-500 text-white" : "text-slate-300")}>Đúng</div>
+                              <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Sai' ? "bg-rose-500 text-white" : "text-slate-300")}>Sai</div>
                             </div>
                             {showAnswers && (
                               <div className={cn("text-xs font-bold px-3 py-1 rounded-full", isCorrect ? "bg-emerald-500/20 text-emerald-500" : "bg-rose-500/20 text-rose-500")}>
@@ -1699,7 +1699,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                                 onClick={() => handleTrueFalseAnswer(i, 'Đúng')}
                                 className={cn(
                                   "px-5 py-2 rounded-xl text-sm font-bold transition-all",
-                                  subAns === 'Đúng' ? "bg-emerald-500 text-white shadow-md" : "text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700"
+                                  subAns === 'Đúng' ? "bg-emerald-500 text-white shadow-md" : "text-slate-300 hover:bg-slate-600"
                                 )}
                               >
                                 Đúng
@@ -1708,7 +1708,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                                 onClick={() => handleTrueFalseAnswer(i, 'Sai')}
                                 className={cn(
                                   "px-5 py-2 rounded-xl text-sm font-bold transition-all",
-                                  subAns === 'Sai' ? "bg-rose-500 text-white shadow-md" : "text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700"
+                                  subAns === 'Sai' ? "bg-rose-500 text-white shadow-md" : "text-slate-300 hover:bg-slate-600"
                                 )}
                               >
                                 Sai
