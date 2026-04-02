@@ -33,6 +33,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
   const [tempQuestion, setTempQuestion] = useState<Question | null>(null);
   const [tempSectionPoints, setTempSectionPoints] = useState(sectionPoints || { multipleChoice: 3, trueFalse: 4, shortAnswer: 3 });
   const [isAiAssisting, setIsAiAssisting] = useState<string | number | null>(null);
+  const [isFixingLatex, setIsFixingLatex] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState('');
 
@@ -204,6 +205,36 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
     }
   };
 
+  const handleFixLatexAI = async (text: string, fieldId: string, onUpdate: (newText: string) => void) => {
+    if (!text) return;
+    const apiKey = await getGeminiApiKey();
+    if (!apiKey) {
+      alert("Vui lòng cấu hình API Key trong phần cài đặt để sử dụng tính năng AI.");
+      return;
+    }
+    setIsFixingLatex(fieldId);
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const result = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Bạn là một chuyên gia Hóa học và LaTeX. Hãy sửa lại các công thức hóa học trong đoạn văn bản sau sao cho đúng chuẩn LaTeX (sử dụng \\ce{} cho công thức hóa học, và bọc trong dấu $...$ hoặc $$...$$). 
+        CHỈ trả về nội dung đã sửa, KHÔNG giải thích gì thêm.
+        LƯU Ý QUAN TRỌNG: Khi sử dụng lệnh \\ce cho công thức hóa học, BẠN BẮT BUỘC PHẢI BAO GỒM DẤU NGOẶC NHỌN {} bao quanh công thức. Ví dụ ĐÚNG: \\ce{H2O}, \\ce{CO2}. Ví dụ SAI: \\ceH2O, \\ceCO2. Việc thiếu dấu ngoặc nhọn sẽ làm lỗi hiển thị.
+        
+        Văn bản cần sửa:
+        ${text}`
+      });
+      if (result.text) {
+        onUpdate(result.text.trim());
+      }
+    } catch (error) {
+      console.error("Lỗi khi gọi AI:", error);
+      alert("Có lỗi xảy ra khi gọi AI. Vui lòng thử lại.");
+    } finally {
+      setIsFixingLatex(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6">
@@ -277,12 +308,22 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                   </div>
                 </div>
 
-                <textarea
-                  value={tempQuestion?.content}
-                  onChange={e => setTempQuestion({ ...tempQuestion!, content: e.target.value })}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white focus:outline-none focus:border-teal-500 min-h-[100px]"
-                  placeholder="Nội dung câu hỏi..."
-                />
+                <div className="relative">
+                  <textarea
+                    value={tempQuestion?.content}
+                    onChange={e => setTempQuestion({ ...tempQuestion!, content: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white focus:outline-none focus:border-teal-500 min-h-[100px]"
+                    placeholder="Nội dung câu hỏi..."
+                  />
+                  <button
+                    onClick={() => handleFixLatexAI(tempQuestion?.content || '', 'main_content', (newText) => setTempQuestion({ ...tempQuestion!, content: newText }))}
+                    disabled={isFixingLatex === 'main_content'}
+                    className="absolute bottom-3 right-3 p-2 bg-purple-500/20 text-purple-400 rounded-xl hover:bg-purple-500 hover:text-white transition-colors"
+                    title="AI sửa lỗi LaTeX"
+                  >
+                    {isFixingLatex === 'main_content' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  </button>
+                </div>
 
                 {/* Image Upload Area */}
                 <div className="space-y-3">
@@ -352,15 +393,29 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                     {tempQuestion.options.map((opt, i) => (
                       <div key={i} className="flex gap-2 items-center">
                         <span className="w-8 h-10 flex items-center justify-center bg-slate-800 rounded-xl text-teal-400 font-bold">{String.fromCharCode(65 + i)}</span>
-                        <input
-                          value={opt}
-                          onChange={e => {
-                            const newOpts = [...tempQuestion.options!];
-                            newOpts[i] = e.target.value;
-                            setTempQuestion({ ...tempQuestion, options: newOpts });
-                          }}
-                          className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-teal-500"
-                        />
+                        <div className="relative flex-1">
+                          <input
+                            value={opt}
+                            onChange={e => {
+                              const newOpts = [...tempQuestion.options!];
+                              newOpts[i] = e.target.value;
+                              setTempQuestion({ ...tempQuestion, options: newOpts });
+                            }}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 pr-10 text-white focus:outline-none focus:border-teal-500"
+                          />
+                          <button
+                            onClick={() => handleFixLatexAI(opt, `opt_${i}`, (newText) => {
+                              const newOpts = [...tempQuestion.options!];
+                              newOpts[i] = newText;
+                              setTempQuestion({ ...tempQuestion, options: newOpts });
+                            })}
+                            disabled={isFixingLatex === `opt_${i}`}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition-colors"
+                            title="AI sửa lỗi LaTeX"
+                          >
+                            {isFixingLatex === `opt_${i}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                         <button
                           onClick={() => setTempQuestion({ ...tempQuestion, answer: String.fromCharCode(65 + i) })}
                           className={cn("p-2 rounded-xl transition-colors", tempQuestion.answer === String.fromCharCode(65 + i) ? "bg-teal-500/20 text-teal-400" : "text-slate-500 hover:text-teal-400")}
@@ -439,15 +494,29 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                     {tempQuestion.subQuestions.map((sq, i) => (
                       <div key={i} className="flex gap-3 bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
                         <span className="text-teal-400 font-bold">{sq.id})</span>
-                        <input
-                          value={sq.content || (sq as any).text || ''}
-                          onChange={e => {
-                            const newSub = [...tempQuestion.subQuestions!];
-                            newSub[i] = { ...newSub[i], content: e.target.value };
-                            setTempQuestion({ ...tempQuestion, subQuestions: newSub });
-                          }}
-                          className="flex-1 bg-transparent border-none text-white focus:outline-none"
-                        />
+                        <div className="flex-1 relative">
+                          <input
+                            value={sq.content || (sq as any).text || ''}
+                            onChange={e => {
+                              const newSub = [...tempQuestion.subQuestions!];
+                              newSub[i] = { ...newSub[i], content: e.target.value };
+                              setTempQuestion({ ...tempQuestion, subQuestions: newSub });
+                            }}
+                            className="w-full bg-transparent border-none text-white focus:outline-none pr-8"
+                          />
+                          <button
+                            onClick={() => handleFixLatexAI(sq.content || (sq as any).text || '', `sq_${i}`, (newText) => {
+                              const newSub = [...tempQuestion.subQuestions!];
+                              newSub[i] = { ...newSub[i], content: newText };
+                              setTempQuestion({ ...tempQuestion, subQuestions: newSub });
+                            })}
+                            disabled={isFixingLatex === `sq_${i}`}
+                            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition-colors"
+                            title="AI sửa lỗi LaTeX"
+                          >
+                            {isFixingLatex === `sq_${i}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                         <select
                           value={sq.answer}
                           onChange={e => {
@@ -477,12 +546,22 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                   </div>
                 )}
 
-                <textarea
-                  value={tempQuestion?.explanation}
-                  onChange={e => setTempQuestion({ ...tempQuestion!, explanation: e.target.value })}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-slate-300 text-sm focus:outline-none focus:border-teal-500 min-h-[80px]"
-                  placeholder="Lời giải chi tiết..."
-                />
+                <div className="relative">
+                  <textarea
+                    value={tempQuestion?.explanation}
+                    onChange={e => setTempQuestion({ ...tempQuestion!, explanation: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-slate-300 text-sm focus:outline-none focus:border-teal-500 min-h-[80px]"
+                    placeholder="Lời giải chi tiết..."
+                  />
+                  <button
+                    onClick={() => handleFixLatexAI(tempQuestion?.explanation || '', 'explanation', (newText) => setTempQuestion({ ...tempQuestion!, explanation: newText }))}
+                    disabled={isFixingLatex === 'explanation'}
+                    className="absolute bottom-3 right-3 p-2 bg-purple-500/20 text-purple-400 rounded-xl hover:bg-purple-500 hover:text-white transition-colors"
+                    title="AI sửa lỗi LaTeX"
+                  >
+                    {isFixingLatex === 'explanation' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
