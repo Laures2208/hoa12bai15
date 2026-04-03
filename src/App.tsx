@@ -1046,6 +1046,58 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
     }
   }, [autoSubmitPending, preparedQuestions, currentExam]);
 
+  // Auto-save progress to localStorage
+  useEffect(() => {
+    if (examStarted && currentExam && !quizFinished && studentInfo) {
+      const progressKey = `exam_progress_${currentExam.id}_${studentInfo.name}_${studentInfo.studentClass}`;
+      const isLimited = currentExam.type === 'Bài thi' || currentExam.type === 'Bài kiểm tra';
+      
+      const saveProgress = () => {
+        const progress = {
+          preparedQuestions,
+          answers: answersRef.current,
+          timeLeft: timeLeftRef.current,
+          currentStep,
+          exitCount,
+          forceSubmit: isLimited ? exitCount > 2 : false
+        };
+        localStorage.setItem(progressKey, JSON.stringify(progress));
+      };
+
+      const saveToFirestore = () => {
+        const progress = {
+          preparedQuestions,
+          answers: answersRef.current,
+          timeLeft: timeLeftRef.current,
+          currentStep,
+          exitCount,
+          forceSubmit: isLimited ? exitCount > 2 : false
+        };
+        setDoc(doc(db, 'exam_progress', progressKey), {
+          ...progress,
+          examId: currentExam.id,
+          studentName: studentInfo.name,
+          studentClass: studentInfo.studentClass,
+          updatedAt: serverTimestamp()
+        }).catch(err => console.error("Error auto-saving progress to Firestore:", err));
+      };
+
+      // Save immediately when answers or currentStep changes
+      saveProgress();
+      
+      // Also save periodically every 5 seconds to keep timeLeft relatively accurate
+      const interval = setInterval(saveProgress, 5000);
+      
+      // Save to Firestore every 30 seconds
+      const firestoreInterval = setInterval(saveToFirestore, 30000);
+      
+      return () => {
+        clearInterval(interval);
+        clearInterval(firestoreInterval);
+      };
+    }
+  }, [answers, currentStep, examStarted, currentExam, quizFinished, studentInfo, preparedQuestions, exitCount]);
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (examStarted && currentExam && !quizFinished) {
