@@ -697,7 +697,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                 Hệ thống yêu cầu xác thực để lưu trữ kết quả học tập.
               </p>
               <p className="text-[10px] text-slate-600 font-mono mt-1">
-                Phiên bản 1.5.4
+                Phiên bản 1.5.5
               </p>
             </div>
             <button

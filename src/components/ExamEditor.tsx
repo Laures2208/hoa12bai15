@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Pencil, Trash2, Save, X, Sparkles, Check, AlertCircle, ChevronDown, ChevronUp, Image as ImageIcon, Loader2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Save, X, Sparkles, Check, AlertCircle, ChevronDown, ChevronUp, Image as ImageIcon, Loader2, Plus, Link as LinkIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -52,17 +52,11 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
     setImageUrlInput('');
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !tempQuestion) return;
-
-    // Kiểm tra định dạng
+  const handleGenericImageUpload = async (file: File, onSuccess: (url: string) => void) => {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       alert('Chỉ chấp nhận định dạng .jpg, .png hoặc .webp');
       return;
     }
-
-    // Giới hạn 500KB để đảm bảo hiệu suất Firestore (miễn phí)
     if (file.size > 500 * 1024) {
       alert('Ảnh quá lớn! Vui lòng chọn ảnh dưới 500KB để lưu trữ trực tiếp (miễn phí).');
       return;
@@ -70,7 +64,6 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
 
     setIsUploading(true);
     try {
-      // Tải ảnh lên Firebase Storage thay vì dùng Base64 để tránh giới hạn 1MB của Firestore
       const imageRef = ref(storage, `exams/images/${auth.currentUser?.uid || 'anonymous'}/${Date.now()}_${file.name}`);
       const uploadTask = uploadBytesResumable(imageRef, file);
       
@@ -83,7 +76,20 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
       });
 
       const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+      onSuccess(downloadURL);
+    } catch (error: any) {
+      console.error('Image upload error:', error);
+      alert('Lỗi tải ảnh: ' + (error.message || 'Không xác định'));
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !tempQuestion) return;
+
+    await handleGenericImageUpload(file, (downloadURL) => {
       setTempQuestion(prev => {
         if (!prev) return prev;
         return {
@@ -95,16 +101,10 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
             : prev.content + '\n\n[[IMAGE_PLACEHOLDER]]'
         };
       });
-      
       console.log('Image uploaded to Storage successfully:', downloadURL);
-    } catch (error: any) {
-      console.error('Image upload error:', error);
-      alert('Lỗi tải ảnh: ' + (error.message || 'Không xác định'));
-    } finally {
-      setIsUploading(false);
-      // Reset input để có thể chọn lại cùng 1 file
-      e.target.value = '';
-    }
+    });
+    
+    e.target.value = '';
   };
 
   const removeImage = () => {
@@ -401,20 +401,58 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                               newOpts[i] = e.target.value;
                               setTempQuestion({ ...tempQuestion, options: newOpts });
                             }}
-                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 pr-10 text-white focus:outline-none focus:border-teal-500"
+                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 pr-20 text-white focus:outline-none focus:border-teal-500"
                           />
-                          <button
-                            onClick={() => handleFixLatexAI(opt, `opt_${i}`, (newText) => {
-                              const newOpts = [...tempQuestion.options!];
-                              newOpts[i] = newText;
-                              setTempQuestion({ ...tempQuestion, options: newOpts });
-                            })}
-                            disabled={isFixingLatex === `opt_${i}`}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition-colors"
-                            title="AI sửa lỗi LaTeX"
-                          >
-                            {isFixingLatex === `opt_${i}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                          </button>
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                const url = window.prompt('Nhập đường dẫn (URL) của ảnh:');
+                                if (url) {
+                                  const newOpts = [...tempQuestion.options!];
+                                  newOpts[i] = newOpts[i] + `\n\n![image](${url})`;
+                                  setTempQuestion({ ...tempQuestion, options: newOpts });
+                                }
+                              }}
+                              className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20 rounded-lg transition-colors"
+                              title="Thêm ảnh từ URL"
+                            >
+                              <LinkIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <label className={cn(
+                              "p-1.5 text-teal-400 hover:text-teal-300 hover:bg-teal-500/20 rounded-lg transition-colors cursor-pointer",
+                              isUploading && "opacity-50 cursor-not-allowed"
+                            )} title="Thêm ảnh">
+                              <ImageIcon className="w-3.5 h-3.5" />
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  handleGenericImageUpload(file, (url) => {
+                                    const newOpts = [...tempQuestion.options!];
+                                    newOpts[i] = newOpts[i] + `\n\n![image](${url})`;
+                                    setTempQuestion({ ...tempQuestion, options: newOpts });
+                                  });
+                                  e.target.value = '';
+                                }}
+                                disabled={isUploading}
+                              />
+                            </label>
+                            <button
+                              onClick={() => handleFixLatexAI(opt, `opt_${i}`, (newText) => {
+                                const newOpts = [...tempQuestion.options!];
+                                newOpts[i] = newText;
+                                setTempQuestion({ ...tempQuestion, options: newOpts });
+                              })}
+                              disabled={isFixingLatex === `opt_${i}`}
+                              className="p-1.5 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition-colors"
+                              title="AI sửa lỗi LaTeX"
+                            >
+                              {isFixingLatex === `opt_${i}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
                         </div>
                         <button
                           onClick={() => setTempQuestion({ ...tempQuestion, answer: String.fromCharCode(65 + i) })}
@@ -502,20 +540,58 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                               newSub[i] = { ...newSub[i], content: e.target.value };
                               setTempQuestion({ ...tempQuestion, subQuestions: newSub });
                             }}
-                            className="w-full bg-transparent border-none text-white focus:outline-none pr-8"
+                            className="w-full bg-transparent border-none text-white focus:outline-none pr-16"
                           />
-                          <button
-                            onClick={() => handleFixLatexAI(sq.content || (sq as any).text || '', `sq_${i}`, (newText) => {
-                              const newSub = [...tempQuestion.subQuestions!];
-                              newSub[i] = { ...newSub[i], content: newText };
-                              setTempQuestion({ ...tempQuestion, subQuestions: newSub });
-                            })}
-                            disabled={isFixingLatex === `sq_${i}`}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition-colors"
-                            title="AI sửa lỗi LaTeX"
-                          >
-                            {isFixingLatex === `sq_${i}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                          </button>
+                          <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                const url = window.prompt('Nhập đường dẫn (URL) của ảnh:');
+                                if (url) {
+                                  const newSub = [...tempQuestion.subQuestions!];
+                                  newSub[i] = { ...newSub[i], content: (newSub[i].content || (newSub[i] as any).text || '') + `\n\n![image](${url})` };
+                                  setTempQuestion({ ...tempQuestion, subQuestions: newSub });
+                                }
+                              }}
+                              className="p-1 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20 rounded-lg transition-colors"
+                              title="Thêm ảnh từ URL"
+                            >
+                              <LinkIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <label className={cn(
+                              "p-1 text-teal-400 hover:text-teal-300 hover:bg-teal-500/20 rounded-lg transition-colors cursor-pointer",
+                              isUploading && "opacity-50 cursor-not-allowed"
+                            )} title="Thêm ảnh">
+                              <ImageIcon className="w-3.5 h-3.5" />
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  handleGenericImageUpload(file, (url) => {
+                                    const newSub = [...tempQuestion.subQuestions!];
+                                    newSub[i] = { ...newSub[i], content: (newSub[i].content || (newSub[i] as any).text || '') + `\n\n![image](${url})` };
+                                    setTempQuestion({ ...tempQuestion, subQuestions: newSub });
+                                  });
+                                  e.target.value = '';
+                                }}
+                                disabled={isUploading}
+                              />
+                            </label>
+                            <button
+                              onClick={() => handleFixLatexAI(sq.content || (sq as any).text || '', `sq_${i}`, (newText) => {
+                                const newSub = [...tempQuestion.subQuestions!];
+                                newSub[i] = { ...newSub[i], content: newText };
+                                setTempQuestion({ ...tempQuestion, subQuestions: newSub });
+                              })}
+                              disabled={isFixingLatex === `sq_${i}`}
+                              className="p-1 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition-colors"
+                              title="AI sửa lỗi LaTeX"
+                            >
+                              {isFixingLatex === `sq_${i}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
                         </div>
                         <select
                           value={sq.answer}
