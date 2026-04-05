@@ -36,6 +36,8 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
   const [isFixingLatex, setIsFixingLatex] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState('');
+  const [activeUrlInput, setActiveUrlInput] = useState<string | null>(null);
+  const [optionUrlInput, setOptionUrlInput] = useState('');
 
   const handleAddImageUrl = () => {
     if (!imageUrlInput.trim() || !tempQuestion) return;
@@ -391,91 +393,97 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                 {q.type === 'multiple_choice' && tempQuestion?.options && (
                   <div className="space-y-3">
                     {tempQuestion.options.map((opt, i) => (
-                      <div key={i} className="flex gap-2 items-center">
-                        <span className="w-8 h-10 flex items-center justify-center bg-slate-800 rounded-xl text-teal-400 font-bold">{String.fromCharCode(65 + i)}</span>
-                        <div className="relative flex-1">
-                          <input
-                            value={opt}
-                            onChange={e => {
-                              const newOpts = [...tempQuestion.options!];
-                              newOpts[i] = e.target.value;
-                              setTempQuestion({ ...tempQuestion, options: newOpts });
-                            }}
-                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 pr-20 text-white focus:outline-none focus:border-teal-500"
-                          />
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                            <button
-                              onClick={() => {
-                                const url = window.prompt('Nhập đường dẫn (URL) của ảnh:');
-                                if (url) {
-                                  const newOpts = [...tempQuestion.options!];
-                                  newOpts[i] = newOpts[i] + `\n\n![image](${url})`;
-                                  setTempQuestion({ ...tempQuestion, options: newOpts });
-                                }
-                              }}
-                              className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20 rounded-lg transition-colors"
-                              title="Thêm ảnh từ URL"
-                            >
-                              <LinkIcon className="w-3.5 h-3.5" />
-                            </button>
-                            <label className={cn(
-                              "p-1.5 text-teal-400 hover:text-teal-300 hover:bg-teal-500/20 rounded-lg transition-colors cursor-pointer",
-                              isUploading && "opacity-50 cursor-not-allowed"
-                            )} title="Thêm ảnh">
-                              <ImageIcon className="w-3.5 h-3.5" />
-                              <input 
-                                type="file" 
-                                className="hidden" 
-                                accept="image/jpeg,image/png,image/webp"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  handleGenericImageUpload(file, (url) => {
-                                    const newOpts = [...tempQuestion.options!];
-                                    newOpts[i] = newOpts[i] + `\n\n![image](${url})`;
-                                    setTempQuestion({ ...tempQuestion, options: newOpts });
-                                  });
-                                  e.target.value = '';
-                                }}
-                                disabled={isUploading}
-                              />
-                            </label>
-                            <button
-                              onClick={() => handleFixLatexAI(opt, `opt_${i}`, (newText) => {
+                      <div key={i} className="flex flex-col gap-2">
+                        <div className="flex gap-2 items-center">
+                          <span className="w-8 h-10 flex items-center justify-center bg-slate-800 rounded-xl text-teal-400 font-bold">{String.fromCharCode(65 + i)}</span>
+                          <div className="relative flex-1">
+                            <input
+                              value={opt}
+                              onChange={e => {
                                 const newOpts = [...tempQuestion.options!];
-                                newOpts[i] = newText;
+                                newOpts[i] = e.target.value;
                                 setTempQuestion({ ...tempQuestion, options: newOpts });
-                              })}
-                              disabled={isFixingLatex === `opt_${i}`}
-                              className="p-1.5 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition-colors"
-                              title="AI sửa lỗi LaTeX"
-                            >
-                              {isFixingLatex === `opt_${i}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                            </button>
+                              }}
+                              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 pr-24 text-white focus:outline-none focus:border-teal-500"
+                            />
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  if (activeUrlInput === `opt_${i}`) {
+                                    setActiveUrlInput(null);
+                                  } else {
+                                    setActiveUrlInput(`opt_${i}`);
+                                    setOptionUrlInput('');
+                                  }
+                                }}
+                                className={cn(
+                                  "p-1.5 rounded-lg transition-colors",
+                                  activeUrlInput === `opt_${i}` 
+                                    ? "bg-blue-500/20 text-blue-300" 
+                                    : "text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                                )}
+                                title="Thêm ảnh từ URL"
+                              >
+                                <LinkIcon className="w-3.5 h-3.5" />
+                              </button>
+                              <label className={cn(
+                                "p-1.5 text-teal-400 hover:text-teal-300 hover:bg-teal-500/20 rounded-lg transition-colors cursor-pointer",
+                                isUploading && "opacity-50 cursor-not-allowed"
+                              )} title="Thêm ảnh">
+                                <ImageIcon className="w-3.5 h-3.5" />
+                                <input 
+                                  type="file" 
+                                  className="hidden" 
+                                  accept="image/jpeg,image/png,image/webp"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    handleGenericImageUpload(file, (url) => {
+                                      const newOpts = [...tempQuestion.options!];
+                                      newOpts[i] = newOpts[i] + `\n\n![image](${url})`;
+                                      setTempQuestion({ ...tempQuestion, options: newOpts });
+                                    });
+                                    e.target.value = '';
+                                  }}
+                                  disabled={isUploading}
+                                />
+                              </label>
+                              <button
+                                onClick={() => handleFixLatexAI(opt, `opt_${i}`, (newText) => {
+                                  const newOpts = [...tempQuestion.options!];
+                                  newOpts[i] = newText;
+                                  setTempQuestion({ ...tempQuestion, options: newOpts });
+                                })}
+                                disabled={isFixingLatex === `opt_${i}`}
+                                className="p-1.5 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition-colors"
+                                title="AI sửa lỗi LaTeX"
+                              >
+                                {isFixingLatex === `opt_${i}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        <button
-                          onClick={() => setTempQuestion({ ...tempQuestion, answer: String.fromCharCode(65 + i) })}
-                          className={cn("p-2 rounded-xl transition-colors", tempQuestion.answer === String.fromCharCode(65 + i) ? "bg-teal-500/20 text-teal-400" : "text-slate-500 hover:text-teal-400")}
-                          title="Chọn làm đáp án đúng"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (i === 0) return;
-                            const newOpts = [...tempQuestion.options!];
-                            [newOpts[i - 1], newOpts[i]] = [newOpts[i], newOpts[i - 1]];
-                            let newAnswer = tempQuestion.answer;
-                            const charI = String.fromCharCode(65 + i);
-                            const charPrev = String.fromCharCode(65 + i - 1);
-                            if (newAnswer === charI) newAnswer = charPrev;
-                            else if (newAnswer === charPrev) newAnswer = charI;
-                            setTempQuestion({ ...tempQuestion, options: newOpts, answer: newAnswer });
-                          }}
-                          disabled={i === 0}
-                          className="p-2 text-slate-500 hover:text-white disabled:opacity-30 transition-colors"
-                          title="Di chuyển lên"
+                          <button
+                            onClick={() => setTempQuestion({ ...tempQuestion, answer: String.fromCharCode(65 + i) })}
+                            className={cn("p-2 rounded-xl transition-colors", tempQuestion.answer === String.fromCharCode(65 + i) ? "bg-teal-500/20 text-teal-400" : "text-slate-500 hover:text-teal-400")}
+                            title="Chọn làm đáp án đúng"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (i === 0) return;
+                              const newOpts = [...tempQuestion.options!];
+                              [newOpts[i - 1], newOpts[i]] = [newOpts[i], newOpts[i - 1]];
+                              let newAnswer = tempQuestion.answer;
+                              const charI = String.fromCharCode(65 + i);
+                              const charPrev = String.fromCharCode(65 + i - 1);
+                              if (newAnswer === charI) newAnswer = charPrev;
+                              else if (newAnswer === charPrev) newAnswer = charI;
+                              setTempQuestion({ ...tempQuestion, options: newOpts, answer: newAnswer });
+                            }}
+                            disabled={i === 0}
+                            className="p-2 text-slate-500 hover:text-white disabled:opacity-30 transition-colors"
+                            title="Di chuyển lên"
                         >
                           <ChevronUp className="w-4 h-4" />
                         </button>
@@ -515,7 +523,33 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                           <X className="w-4 h-4" />
                         </button>
                       </div>
-                    ))}
+                      {activeUrlInput === `opt_${i}` && (
+                        <div className="flex items-center gap-2 ml-10 mr-[164px]">
+                          <input
+                            type="text"
+                            value={optionUrlInput}
+                            onChange={e => setOptionUrlInput(e.target.value)}
+                            placeholder="Nhập URL ảnh..."
+                            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!optionUrlInput.trim()) return;
+                              const newOpts = [...tempQuestion.options!];
+                              newOpts[i] = newOpts[i] + `\n\n![image](${optionUrlInput.trim()})`;
+                              setTempQuestion({ ...tempQuestion, options: newOpts });
+                              setActiveUrlInput(null);
+                              setOptionUrlInput('');
+                            }}
+                            disabled={!optionUrlInput.trim()}
+                            className="px-3 py-1.5 bg-teal-500/20 text-teal-400 rounded-xl hover:bg-teal-500/30 disabled:opacity-50 text-sm font-medium transition-colors"
+                          >
+                            Thêm
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                     <button
                       onClick={() => {
                         setTempQuestion({ ...tempQuestion, options: [...tempQuestion.options!, ''] });
@@ -530,81 +564,113 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                 {q.type === 'true_false' && tempQuestion?.subQuestions && (
                   <div className="space-y-3">
                     {tempQuestion.subQuestions.map((sq, i) => (
-                      <div key={i} className="flex gap-3 bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
-                        <span className="text-teal-400 font-bold">{sq.id})</span>
-                        <div className="flex-1 relative">
-                          <input
-                            value={sq.content || (sq as any).text || ''}
+                      <div key={i} className="flex flex-col gap-2 bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
+                        <div className="flex gap-3 items-center">
+                          <span className="text-teal-400 font-bold">{sq.id})</span>
+                          <div className="flex-1 relative">
+                            <input
+                              value={sq.content || (sq as any).text || ''}
+                              onChange={e => {
+                                const newSub = [...tempQuestion.subQuestions!];
+                                newSub[i] = { ...newSub[i], content: e.target.value };
+                                setTempQuestion({ ...tempQuestion, subQuestions: newSub });
+                              }}
+                              className="w-full bg-transparent border-none text-white focus:outline-none pr-24"
+                            />
+                            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  if (activeUrlInput === `sq_${i}`) {
+                                    setActiveUrlInput(null);
+                                  } else {
+                                    setActiveUrlInput(`sq_${i}`);
+                                    setOptionUrlInput('');
+                                  }
+                                }}
+                                className={cn(
+                                  "p-1 rounded-lg transition-colors",
+                                  activeUrlInput === `sq_${i}` 
+                                    ? "bg-blue-500/20 text-blue-300" 
+                                    : "text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                                )}
+                                title="Thêm ảnh từ URL"
+                              >
+                                <LinkIcon className="w-3.5 h-3.5" />
+                              </button>
+                              <label className={cn(
+                                "p-1 text-teal-400 hover:text-teal-300 hover:bg-teal-500/20 rounded-lg transition-colors cursor-pointer",
+                                isUploading && "opacity-50 cursor-not-allowed"
+                              )} title="Thêm ảnh">
+                                <ImageIcon className="w-3.5 h-3.5" />
+                                <input 
+                                  type="file" 
+                                  className="hidden" 
+                                  accept="image/jpeg,image/png,image/webp"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    handleGenericImageUpload(file, (url) => {
+                                      const newSub = [...tempQuestion.subQuestions!];
+                                      newSub[i] = { ...newSub[i], content: (newSub[i].content || (newSub[i] as any).text || '') + `\n\n![image](${url})` };
+                                      setTempQuestion({ ...tempQuestion, subQuestions: newSub });
+                                    });
+                                    e.target.value = '';
+                                  }}
+                                  disabled={isUploading}
+                                />
+                              </label>
+                              <button
+                                onClick={() => handleFixLatexAI(sq.content || (sq as any).text || '', `sq_${i}`, (newText) => {
+                                  const newSub = [...tempQuestion.subQuestions!];
+                                  newSub[i] = { ...newSub[i], content: newText };
+                                  setTempQuestion({ ...tempQuestion, subQuestions: newSub });
+                                })}
+                                disabled={isFixingLatex === `sq_${i}`}
+                                className="p-1 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition-colors"
+                                title="AI sửa lỗi LaTeX"
+                              >
+                                {isFixingLatex === `sq_${i}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+                          <select
+                            value={sq.answer}
                             onChange={e => {
                               const newSub = [...tempQuestion.subQuestions!];
-                              newSub[i] = { ...newSub[i], content: e.target.value };
+                              newSub[i] = { ...newSub[i], answer: e.target.value as 'Đúng' | 'Sai' };
                               setTempQuestion({ ...tempQuestion, subQuestions: newSub });
                             }}
-                            className="w-full bg-transparent border-none text-white focus:outline-none pr-16"
-                          />
-                          <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            className="bg-slate-900 text-white rounded-lg px-2 py-1 text-xs font-bold border border-slate-700"
+                          >
+                            <option value="Đúng">Đúng</option>
+                            <option value="Sai">Sai</option>
+                          </select>
+                        </div>
+                        {activeUrlInput === `sq_${i}` && (
+                          <div className="flex items-center gap-2 ml-6">
+                            <input
+                              type="text"
+                              value={optionUrlInput}
+                              onChange={e => setOptionUrlInput(e.target.value)}
+                              placeholder="Nhập URL ảnh..."
+                              className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:border-teal-500"
+                            />
                             <button
                               onClick={() => {
-                                const url = window.prompt('Nhập đường dẫn (URL) của ảnh:');
-                                if (url) {
-                                  const newSub = [...tempQuestion.subQuestions!];
-                                  newSub[i] = { ...newSub[i], content: (newSub[i].content || (newSub[i] as any).text || '') + `\n\n![image](${url})` };
-                                  setTempQuestion({ ...tempQuestion, subQuestions: newSub });
-                                }
-                              }}
-                              className="p-1 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20 rounded-lg transition-colors"
-                              title="Thêm ảnh từ URL"
-                            >
-                              <LinkIcon className="w-3.5 h-3.5" />
-                            </button>
-                            <label className={cn(
-                              "p-1 text-teal-400 hover:text-teal-300 hover:bg-teal-500/20 rounded-lg transition-colors cursor-pointer",
-                              isUploading && "opacity-50 cursor-not-allowed"
-                            )} title="Thêm ảnh">
-                              <ImageIcon className="w-3.5 h-3.5" />
-                              <input 
-                                type="file" 
-                                className="hidden" 
-                                accept="image/jpeg,image/png,image/webp"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  handleGenericImageUpload(file, (url) => {
-                                    const newSub = [...tempQuestion.subQuestions!];
-                                    newSub[i] = { ...newSub[i], content: (newSub[i].content || (newSub[i] as any).text || '') + `\n\n![image](${url})` };
-                                    setTempQuestion({ ...tempQuestion, subQuestions: newSub });
-                                  });
-                                  e.target.value = '';
-                                }}
-                                disabled={isUploading}
-                              />
-                            </label>
-                            <button
-                              onClick={() => handleFixLatexAI(sq.content || (sq as any).text || '', `sq_${i}`, (newText) => {
+                                if (!optionUrlInput.trim()) return;
                                 const newSub = [...tempQuestion.subQuestions!];
-                                newSub[i] = { ...newSub[i], content: newText };
+                                newSub[i] = { ...newSub[i], content: (newSub[i].content || (newSub[i] as any).text || '') + `\n\n![image](${optionUrlInput.trim()})` };
                                 setTempQuestion({ ...tempQuestion, subQuestions: newSub });
-                              })}
-                              disabled={isFixingLatex === `sq_${i}`}
-                              className="p-1 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 rounded-lg transition-colors"
-                              title="AI sửa lỗi LaTeX"
+                                setActiveUrlInput(null);
+                                setOptionUrlInput('');
+                              }}
+                              disabled={!optionUrlInput.trim()}
+                              className="px-3 py-1.5 bg-teal-500/20 text-teal-400 rounded-xl hover:bg-teal-500/30 disabled:opacity-50 text-sm font-medium transition-colors"
                             >
-                              {isFixingLatex === `sq_${i}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                              Thêm
                             </button>
                           </div>
-                        </div>
-                        <select
-                          value={sq.answer}
-                          onChange={e => {
-                            const newSub = [...tempQuestion.subQuestions!];
-                            newSub[i] = { ...newSub[i], answer: e.target.value as 'Đúng' | 'Sai' };
-                            setTempQuestion({ ...tempQuestion, subQuestions: newSub });
-                          }}
-                          className="bg-slate-900 text-white rounded-lg px-2 py-1 text-xs font-bold border border-slate-700"
-                        >
-                          <option value="Đúng">Đúng</option>
-                          <option value="Sai">Sai</option>
-                        </select>
+                        )}
                       </div>
                     ))}
                   </div>
