@@ -45,10 +45,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
       if (!prev) return prev;
       return {
         ...prev,
-        imageUrl: imageUrlInput.trim(),
-        content: prev.content.includes('[[IMAGE_PLACEHOLDER]]') 
-          ? prev.content 
-          : prev.content + '\n\n[[IMAGE_PLACEHOLDER]]'
+        content: (prev.content || '') + `\n\n![image](${imageUrlInput.trim()})`
       };
     });
     setImageUrlInput('');
@@ -96,27 +93,13 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
         if (!prev) return prev;
         return {
           ...prev,
-          imageUrl: downloadURL,
-          // Tự động thêm placeholder nếu chưa có
-          content: prev.content.includes('[[IMAGE_PLACEHOLDER]]') 
-            ? prev.content 
-            : prev.content + '\n\n[[IMAGE_PLACEHOLDER]]'
+          content: (prev.content || '') + `\n\n![image](${downloadURL})`
         };
       });
       console.log('Image uploaded to Storage successfully:', downloadURL);
     });
     
     e.target.value = '';
-  };
-
-  const removeImage = () => {
-    if (tempQuestion) {
-      setTempQuestion({
-        ...tempQuestion,
-        imageUrl: undefined,
-        content: tempQuestion.content.replace('[[IMAGE_PLACEHOLDER]]', '').trim()
-      });
-    }
   };
 
   const handleEdit = (q: Question) => {
@@ -366,28 +349,28 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                         Thêm
                       </button>
                     </div>
-                    {tempQuestion?.imageUrl && (
-                      <button 
-                        onClick={removeImage}
-                        className="text-xs text-rose-400 hover:text-rose-300 underline whitespace-nowrap"
-                      >
-                        Xóa ảnh
-                      </button>
-                    )}
                   </div>
 
-                  {tempQuestion?.imageUrl && (
-                    <div className="relative w-full max-w-xs group">
-                      <img 
-                        src={tempQuestion.imageUrl || null} 
-                        alt="Preview" 
-                        className="rounded-xl border border-slate-700 shadow-lg"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
-                        <span className="text-white text-xs font-bold">Xem trước ảnh</span>
+                  {(() => {
+                    const contentImages = Array.from(tempQuestion?.content?.matchAll(/!\[.*?\]\((.*?)\)/g) || []).map(m => m[1]);
+                    if (contentImages.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap gap-4 mt-4">
+                        {contentImages.map((url, idx) => (
+                          <div key={idx} className="relative w-32 h-32 group">
+                            <img 
+                              src={url} 
+                              alt={`Preview ${idx + 1}`} 
+                              className="w-full h-full object-cover rounded-xl border border-slate-700 shadow-lg"
+                            />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                              <span className="text-white text-xs font-bold text-center px-2">Xóa trong<br/>nội dung</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {q.type === 'multiple_choice' && tempQuestion?.options && (
@@ -548,6 +531,26 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                           </button>
                         </div>
                       )}
+                      {(() => {
+                        const optImages = Array.from(opt.matchAll(/!\[.*?\]\((.*?)\)/g) || []).map(m => m[1]);
+                        if (optImages.length === 0) return null;
+                        return (
+                          <div className="flex flex-wrap gap-2 ml-10 mt-2">
+                            {optImages.map((url, idx) => (
+                              <div key={idx} className="relative w-24 h-24 group">
+                                <img 
+                                  src={url} 
+                                  alt={`Preview ${idx + 1}`} 
+                                  className="w-full h-full object-cover rounded-lg border border-slate-700 shadow-sm"
+                                />
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                  <span className="text-white text-[10px] font-bold text-center px-1">Xóa trong<br/>nội dung</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                     <button
@@ -671,6 +674,27 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
                             </button>
                           </div>
                         )}
+                        {(() => {
+                          const sqContent = sq.content || (sq as any).text || '';
+                          const sqImages = Array.from(sqContent.matchAll(/!\[.*?\]\((.*?)\)/g) || []).map(m => m[1]);
+                          if (sqImages.length === 0) return null;
+                          return (
+                            <div className="flex flex-wrap gap-2 ml-6 mt-2">
+                              {sqImages.map((url, idx) => (
+                                <div key={idx} className="relative w-24 h-24 group">
+                                  <img 
+                                    src={url} 
+                                    alt={`Preview ${idx + 1}`} 
+                                    className="w-full h-full object-cover rounded-lg border border-slate-700 shadow-sm"
+                                  />
+                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                    <span className="text-white text-[10px] font-bold text-center px-1">Xóa trong<br/>nội dung</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>

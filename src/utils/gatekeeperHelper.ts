@@ -13,14 +13,12 @@ export const checkAndResetGatekeeper = async () => {
     if (configDoc.exists()) {
       const data = configDoc.data();
       if (data.lastResetDate !== todayStr) {
-        // Reset needed
-        const newPasscode = Math.floor(1000 + Math.random() * 9000).toString();
+        // Reset needed: only turn off autoApprove, keep existing passcode
         await setDoc(configRef, {
           autoApprove: false,
-          passcode: newPasscode,
           lastResetDate: todayStr
         }, { merge: true });
-        return { autoApprove: false, passcode: newPasscode };
+        return { autoApprove: false, passcode: data.passcode || '' };
       }
       return { autoApprove: data.autoApprove ?? true, passcode: data.passcode || '' };
     } else {
