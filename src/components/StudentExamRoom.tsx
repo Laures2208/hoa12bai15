@@ -390,49 +390,81 @@ export const StudentExamRoom: React.FC = () => {
         </AnimatePresence>
 
         {/* Navigation Footer */}
-        <div className="mt-8 flex items-center justify-between">
-          <button
-            onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-            disabled={currentQuestionIndex === 0}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Câu trước
-          </button>
+        <div className="mt-8 flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+              disabled={currentQuestionIndex === 0}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Câu trước
+            </button>
 
-          {/* Question Navigator Dots */}
-          <div className="hidden md:flex items-center gap-2 overflow-x-auto px-4 max-w-[50%] no-scrollbar">
-            {exam.questions.map((q, idx) => {
-              const isAnswered = answers[q.id] !== undefined && 
-                (q.type === 'true_false' ? Object.keys(answers[q.id] || {}).length === q.subQuestions?.length : answers[q.id] !== '');
+            <div className="flex flex-col items-end gap-3">
+              <button
+                onClick={() => setCurrentQuestionIndex(prev => Math.min(exam.questions.length - 1, prev + 1))}
+                disabled={currentQuestionIndex === exam.questions.length - 1}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Câu tiếp
+                <ChevronRight className="w-4 h-4" />
+              </button>
               
-              return (
-                <button
-                  key={q.id}
-                  onClick={() => setCurrentQuestionIndex(idx)}
-                  className={cn(
-                    "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all",
-                    currentQuestionIndex === idx
-                      ? "bg-teal-500 text-slate-900 shadow-[0_0_10px_rgba(20,184,166,0.5)] scale-110"
-                      : isAnswered
-                        ? "bg-teal-500/20 text-teal-400 border border-teal-500/30"
-                        : "bg-slate-800 text-slate-500 hover:bg-slate-700"
-                  )}
-                >
-                  {idx + 1}
-                </button>
-              );
-            })}
+              <button
+                onClick={handleSubmit}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-teal-600 text-white hover:bg-teal-500 transition-colors shadow-[0_0_15px_rgba(13,148,136,0.4)]"
+              >
+                <Send className="w-4 h-4" />
+                Nộp bài
+              </button>
+            </div>
           </div>
 
-          <button
-            onClick={() => setCurrentQuestionIndex(prev => Math.min(exam.questions.length - 1, prev + 1))}
-            disabled={currentQuestionIndex === exam.questions.length - 1}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Câu tiếp
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          {/* Question Navigator Grid */}
+          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+            <h3 className="text-slate-300 font-bold mb-4 flex items-center gap-2">
+              <HelpCircle className="w-5 h-5 text-teal-400" />
+              Danh sách câu hỏi
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {exam.questions.map((q, idx) => {
+                const isAnswered = answers[q.id] !== undefined && 
+                  (q.type === 'true_false' ? Object.keys(answers[q.id] || {}).length === q.subQuestions?.length : answers[q.id] !== '');
+                
+                return (
+                  <button
+                    key={q.id}
+                    onClick={() => setCurrentQuestionIndex(idx)}
+                    className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold transition-all",
+                      currentQuestionIndex === idx
+                        ? "bg-teal-500 text-slate-900 shadow-[0_0_10px_rgba(20,184,166,0.5)] scale-110"
+                        : isAnswered
+                          ? "bg-teal-500/20 text-teal-400 border border-teal-500/30"
+                          : "bg-slate-800 text-slate-500 hover:bg-slate-700 border border-slate-700"
+                    )}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-6 text-xs text-slate-400">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-teal-500/20 border border-teal-500/30"></div>
+                <span>Đã làm</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-slate-800 border border-slate-700"></div>
+                <span>Chưa làm</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-teal-500"></div>
+                <span>Đang chọn</span>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>

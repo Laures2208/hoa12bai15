@@ -45,7 +45,8 @@ import {
   ToggleLeft,
   ToggleRight,
   BookOpen,
-  Bell
+  Bell,
+  HelpCircle
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, updateDoc, setDoc, deleteDoc, addDoc, serverTimestamp, where, getDocs, limit } from 'firebase/firestore';
 import { db } from './firebase';
@@ -1787,38 +1788,94 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
               )}
             </div>
 
-            <div className="flex items-center justify-between mt-8">
-              <button
-                onClick={() => {
-                  if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
-                  setCurrentStep(s => Math.max(0, s - 1));
-                }}
-                disabled={currentStep === 0}
-                className="px-6 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-white font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                <ChevronLeft className="w-5 h-5" />
-                Câu trước
-              </button>
-              
-              {currentStep < preparedQuestions.length - 1 ? (
+            <div className="mt-8 flex flex-col gap-6">
+              <div className="flex items-center justify-between">
                 <button
                   onClick={() => {
                     if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
-                    setCurrentStep(s => Math.min(preparedQuestions.length - 1, s + 1));
+                    setCurrentStep(s => Math.max(0, s - 1));
                   }}
-                  className="px-6 py-4 bg-teal-500 text-white font-bold rounded-2xl hover:bg-teal-600 transition-colors flex items-center gap-2"
+                  disabled={currentStep === 0}
+                  className="px-6 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-white font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
-                  Câu tiếp
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronLeft className="w-5 h-5" />
+                  Câu trước
                 </button>
-              ) : (
-                <button
-                  onClick={checkAndConfirmSubmit}
-                  className="px-8 py-4 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/20"
-                >
-                  Nộp bài
-                </button>
-              )}
+                
+                <div className="flex flex-col items-end gap-3">
+                  <button
+                    onClick={() => {
+                      if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
+                      setCurrentStep(s => Math.min(preparedQuestions.length - 1, s + 1));
+                    }}
+                    disabled={currentStep === preparedQuestions.length - 1}
+                    className="px-6 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-white font-bold rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    Câu tiếp
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    onClick={checkAndConfirmSubmit}
+                    className="flex items-center gap-2 px-6 py-4 bg-teal-500 text-white font-bold rounded-2xl hover:bg-teal-600 transition-colors shadow-[0_0_15px_rgba(20,184,166,0.4)]"
+                  >
+                    <Send className="w-5 h-5" />
+                    Nộp bài
+                  </button>
+                </div>
+              </div>
+
+              {/* Question Navigator Grid */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+                <h3 className="text-slate-700 dark:text-slate-300 font-bold mb-4 flex items-center gap-2">
+                  <HelpCircle className="w-5 h-5 text-teal-500" />
+                  Danh sách câu hỏi
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {preparedQuestions.map((q, idx) => {
+                    const ans = answers.find(a => a.questionId === q.id);
+                    const isAnswered = ans !== undefined && (
+                      q.type === 'true_false' 
+                        ? (ans.subAnswers && Object.keys(ans.subAnswers).length === q.subQuestions?.length)
+                        : (ans.selectedOriginalIndex !== undefined || (ans as any).shortAnswer !== undefined)
+                    );
+                    
+                    return (
+                      <button
+                        key={q.id || idx}
+                        onClick={() => {
+                          if (autoNextTimeoutRef.current) clearTimeout(autoNextTimeoutRef.current);
+                          setCurrentStep(idx);
+                        }}
+                        className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold transition-all",
+                          currentStep === idx
+                            ? "bg-teal-500 text-white shadow-[0_0_10px_rgba(20,184,166,0.5)] scale-110"
+                            : isAnswered
+                              ? "bg-teal-500/20 text-teal-600 dark:text-teal-400 border border-teal-500/30"
+                              : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
+                        )}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-6 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-teal-500/20 border border-teal-500/30"></div>
+                    <span>Đã làm</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"></div>
+                    <span>Chưa làm</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-teal-500"></div>
+                    <span>Đang chọn</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
