@@ -1513,7 +1513,22 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                           )}
                         >
                           <div className="text-base">
-                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkMath]} 
+                              rehypePlugins={[rehypeKatex]}
+                              components={{
+                                img: ({ node, ...props }) => {
+                                  if (!props.src) return null;
+                                  return (
+                                    <img 
+                                      {...props} 
+                                      className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  );
+                                }
+                              }}
+                            >
                               {fixLatex(opt.text)}
                             </ReactMarkdown>
                           </div>
@@ -1535,7 +1550,22 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                           <div className="text-base font-medium text-slate-800 dark:text-slate-100 flex-1 flex items-start">
                             <span className="text-teal-500 font-bold mr-2 mt-1">{String.fromCharCode(97 + i)})</span>
                             <div className="flex-1">
-                              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                              <ReactMarkdown 
+                                remarkPlugins={[remarkMath]} 
+                                rehypePlugins={[rehypeKatex]}
+                                components={{
+                                  img: ({ node, ...props }) => {
+                                    if (!props.src) return null;
+                                    return (
+                                      <img 
+                                        {...props} 
+                                        className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
+                                        referrerPolicy="no-referrer"
+                                      />
+                                    );
+                                  }
+                                }}
+                              >
                                 {fixLatex(sq.content || sq.text || '')}
                               </ReactMarkdown>
                             </div>
@@ -1720,7 +1750,22 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                   )}
                 >
                   <div className="font-medium text-base">
-                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkMath]} 
+                      rehypePlugins={[rehypeKatex]}
+                      components={{
+                        img: ({ node, ...props }) => {
+                          if (!props.src) return null;
+                          return (
+                            <img 
+                              {...props} 
+                              className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
+                              referrerPolicy="no-referrer"
+                            />
+                          );
+                        }
+                      }}
+                    >
                       {fixLatex(option.text)}
                     </ReactMarkdown>
                   </div>
@@ -1742,7 +1787,22 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                         <div className="text-base font-medium text-slate-900 dark:text-slate-100 flex-1 flex items-start">
                           <span className="text-teal-500 font-bold mr-2 mt-1">{String.fromCharCode(97 + i)})</span>
                           <div className="flex-1">
-                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkMath]} 
+                              rehypePlugins={[rehypeKatex]}
+                              components={{
+                                img: ({ node, ...props }) => {
+                                  if (!props.src) return null;
+                                  return (
+                                    <img 
+                                      {...props} 
+                                      className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  );
+                                }
+                              }}
+                            >
                               {fixLatex(sq.content || sq.text || '')}
                             </ReactMarkdown>
                           </div>
@@ -2499,14 +2559,44 @@ const AdminPortal = () => {
                                         <div className="space-y-1">
                                           <p className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
                                             <span className="font-bold">Đã chọn:</span> 
-                                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                            <ReactMarkdown 
+                                              remarkPlugins={[remarkMath]} 
+                                              rehypePlugins={[rehypeKatex]}
+                                              components={{
+                                                img: ({ node, ...props }) => {
+                                                  if (!props.src) return null;
+                                                  return (
+                                                    <img 
+                                                      {...props} 
+                                                      className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
+                                                      referrerPolicy="no-referrer"
+                                                    />
+                                                  );
+                                                }
+                                              }}
+                                            >
                                               {fixLatex(question.options?.[ans.selectedOriginalIndex] || '---')}
                                             </ReactMarkdown>
                                           </p>
                                           {!ans.isCorrect && (
                                             <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                               <span className="font-bold">Đáp án đúng:</span>
-                                              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                              <ReactMarkdown 
+                                                remarkPlugins={[remarkMath]} 
+                                                rehypePlugins={[rehypeKatex]}
+                                                components={{
+                                                  img: ({ node, ...props }) => {
+                                                    if (!props.src) return null;
+                                                    return (
+                                                      <img 
+                                                        {...props} 
+                                                        className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
+                                                        referrerPolicy="no-referrer"
+                                                      />
+                                                    );
+                                                  }
+                                                }}
+                                              >
                                                 {fixLatex(question.options?.[question.answer?.charCodeAt(0) - 65] || '---')}
                                               </ReactMarkdown>
                                             </p>
@@ -2864,7 +2954,22 @@ const PracticeExercises = () => {
                   {idx + 1}
                 </div>
                 <div className="text-lg font-medium text-slate-900 dark:text-white pr-8">
-                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkMath]} 
+                    rehypePlugins={[rehypeKatex]}
+                    components={{
+                      img: ({ node, ...props }) => {
+                        if (!props.src) return null;
+                        return (
+                          <img 
+                            {...props} 
+                            className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
+                            referrerPolicy="no-referrer"
+                          />
+                        );
+                      }
+                    }}
+                  >
                     {fixLatex(exercise.question || '')}
                   </ReactMarkdown>
                 </div>
@@ -2888,7 +2993,22 @@ const PracticeExercises = () => {
                 >
                   <div className="px-6 pb-6 pt-2 ml-12">
                     <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-xl text-slate-700 dark:text-slate-300 prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-100 dark:prose-pre:bg-slate-900">
-                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkMath]} 
+                        rehypePlugins={[rehypeKatex]}
+                        components={{
+                          img: ({ node, ...props }) => {
+                            if (!props.src) return null;
+                            return (
+                              <img 
+                                {...props} 
+                                className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
+                                referrerPolicy="no-referrer"
+                              />
+                            );
+                          }
+                        }}
+                      >
                         {fixLatex(exercise.answer || '')}
                       </ReactMarkdown>
                     </div>

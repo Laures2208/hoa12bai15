@@ -714,7 +714,22 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                                       {q.subQuestions?.map((sq, sIdx) => (
                                         <div key={sq.id || sIdx} className="text-xs bg-slate-900/50 p-2 rounded-lg flex justify-between items-center gap-2">
                                           <div className="text-slate-300 flex-1">
-                                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                            <ReactMarkdown 
+                                              remarkPlugins={[remarkMath]} 
+                                              rehypePlugins={[rehypeKatex]}
+                                              components={{
+                                                img: ({ node, ...props }) => {
+                                                  if (!props.src) return null;
+                                                  return (
+                                                    <img 
+                                                      {...props} 
+                                                      className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-700/50 mx-auto block" 
+                                                      referrerPolicy="no-referrer"
+                                                    />
+                                                  );
+                                                }
+                                              }}
+                                            >
                                               {fixLatex(`${String.fromCharCode(97 + sIdx)}. ${sq.content || (sq as any).text || ''}`)}
                                             </ReactMarkdown>
                                           </div>
@@ -731,7 +746,22 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                                     <div className="grid grid-cols-2 gap-2">
                                       {q.options?.map((opt, oIdx) => (
                                         <div key={oIdx} className="text-xs text-slate-400 bg-slate-900/50 p-2 rounded-lg">
-                                          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                          <ReactMarkdown 
+                                            remarkPlugins={[remarkMath]} 
+                                            rehypePlugins={[rehypeKatex]}
+                                            components={{
+                                              img: ({ node, ...props }) => {
+                                                if (!props.src) return null;
+                                                return (
+                                                  <img 
+                                                    {...props} 
+                                                    className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-700/50 mx-auto block" 
+                                                    referrerPolicy="no-referrer"
+                                                  />
+                                                );
+                                              }
+                                            }}
+                                          >
                                             {fixLatex(opt)}
                                           </ReactMarkdown>
                                         </div>

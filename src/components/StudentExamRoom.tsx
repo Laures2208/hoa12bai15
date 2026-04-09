@@ -315,7 +315,22 @@ export const StudentExamRoom: React.FC = () => {
                           {optionLabel}
                         </div>
                         <div className="flex-1 pt-1 text-slate-200">
-                          <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                          <Markdown 
+                            remarkPlugins={[remarkMath]} 
+                            rehypePlugins={[rehypeKatex]}
+                            components={{
+                              img: ({ node, ...props }) => {
+                                if (!props.src) return null;
+                                return (
+                                  <img 
+                                    {...props} 
+                                    className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-700/50 mx-auto block" 
+                                    referrerPolicy="no-referrer"
+                                  />
+                                );
+                              }
+                            }}
+                          >
                             {fixLatex(option.replace(/^[A-D]\.\s*/, ''))}
                           </Markdown>
                         </div>
@@ -336,7 +351,22 @@ export const StudentExamRoom: React.FC = () => {
                         <div className="flex items-start gap-3 flex-1">
                           <span className="font-bold text-teal-400 mt-1">{subLabel}.</span>
                           <div className="text-slate-100 flex-1">
-                            <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                            <Markdown 
+                              remarkPlugins={[remarkMath]} 
+                              rehypePlugins={[rehypeKatex]}
+                              components={{
+                                img: ({ node, ...props }) => {
+                                  if (!props.src) return null;
+                                  return (
+                                    <img 
+                                      {...props} 
+                                      className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-700/50 mx-auto block" 
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  );
+                                }
+                              }}
+                            >
                               {fixLatex(sub.content || (sub as any).text || '')}
                             </Markdown>
                           </div>
