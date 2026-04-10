@@ -119,20 +119,23 @@ export const StudentTheory: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  const handleDownloadWord = (theory: Theory) => {
+  const handleDownloadWord = async (theory: Theory) => {
     if (!contentRef.current) return;
 
-    const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML to Word Document with JavaScript</title></head><body>";
-    const footer = "</body></html>";
-    const sourceHTML = header + `<h1>${theory.title}</h1>` + contentRef.current.innerHTML + footer;
-    
-    const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
-    const fileDownload = document.createElement("a");
-    document.body.appendChild(fileDownload);
-    fileDownload.href = source;
-    fileDownload.download = `${theory.title.replace(/\s+/g, '_')}.doc`;
-    fileDownload.click();
-    document.body.removeChild(fileDownload);
+    try {
+      const { asBlob } = await import('html-docx-js-typescript');
+      const { saveAs } = await import('file-saver');
+      
+      const htmlString = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${theory.title}</title></head><body><h1>${theory.title}</h1>${contentRef.current.innerHTML}</body></html>`;
+      
+      const blob = await asBlob(htmlString);
+      if (blob) {
+        saveAs(blob as Blob, `${theory.title.replace(/\s+/g, '_')}.docx`);
+      }
+    } catch (error) {
+      console.error("Error generating docx:", error);
+      alert("Có lỗi xảy ra khi tạo file Word. Vui lòng thử lại.");
+    }
   };
 
   const generateSummary = async (theory: Theory) => {

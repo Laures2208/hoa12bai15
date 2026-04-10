@@ -11,6 +11,7 @@ import 'katex/dist/katex.min.css';
 import { AdvancedWordProcessor } from './AdvancedWordProcessor';
 import { removeUndefined } from '../utils/jsonHelper';
 import { fixLatex } from '../utils/latexHelper';
+import { Top10Leaderboard } from './Top10Leaderboard';
 
 export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
 
@@ -450,6 +451,8 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                 )}
               </div>
             </div>
+            
+            <Top10Leaderboard />
           </div>
         </div>
       )}

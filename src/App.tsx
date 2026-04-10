@@ -3023,165 +3023,7 @@ const PracticeExercises = () => {
   );
 };
 
-const Top10Leaderboard = () => {
-  const [topUsers, setTopUsers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [leaderboardType, setLeaderboardType] = useState<'most_exams' | 'highest_avg'>('most_exams');
 
-  useEffect(() => {
-    let unsubscribe: () => void;
-    setIsLoading(true);
-    
-    const setupListener = async () => {
-      try {
-        const { collection, onSnapshot } = await import('firebase/firestore');
-        const { db } = await import('./firebase');
-        
-        const resultsRef = collection(db, 'results');
-        
-        unsubscribe = onSnapshot(resultsRef, (snapshot) => {
-          const statsMap = new Map<string, any>();
-          
-          snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            const key = `${data.studentName}_${data.studentClass}`;
-            
-            if (!statsMap.has(key)) {
-              statsMap.set(key, {
-                student_name: data.studentName,
-                student_class: data.studentClass,
-                total_exams: 0,
-                total_score: 0,
-              });
-            }
-            
-            const userStats = statsMap.get(key);
-            userStats.total_exams += 1;
-            const normalizedScore = data.totalPoints ? (data.score / data.totalPoints) * 10 : (data.score || 0);
-            userStats.total_score += normalizedScore;
-          });
-          
-          const statsArray = Array.from(statsMap.values()).map(stat => ({
-            ...stat,
-            avg_score: stat.total_exams > 0 ? Number((stat.total_score / stat.total_exams).toFixed(2)) : 0
-          }));
-          
-          if (leaderboardType === 'most_exams') {
-            statsArray.sort((a, b) => b.total_exams - a.total_exams || b.avg_score - a.avg_score);
-          } else {
-            statsArray.sort((a, b) => b.avg_score - a.avg_score || b.total_exams - a.total_exams);
-          }
-          
-          setTopUsers(statsArray.slice(0, 10));
-          setIsLoading(false);
-        });
-      } catch (err) {
-        console.error(err);
-        setIsLoading(false);
-      }
-    };
-
-    setupListener();
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [leaderboardType]);
-
-  return (
-    <section className="py-24 px-4 max-w-5xl mx-auto">
-      <ScrollReveal className="text-center mb-12">
-        <h2 className={cn(
-          "text-4xl font-bold mb-4 flex items-center justify-center gap-3 transition-colors duration-300",
-          "text-slate-900 dark:text-white"
-        )}>
-          <Medal className="w-10 h-10 text-yellow-500" />
-          Bảng Vàng Thành Tích
-        </h2>
-        <p className="text-slate-600 dark:text-slate-400 mb-8">Top 10 Luyện Kim Sư xuất sắc nhất</p>
-        
-        <div className="flex justify-center gap-4 mb-8">
-          <button
-            onClick={() => setLeaderboardType('most_exams')}
-            className={cn(
-              "px-6 py-2 rounded-full font-bold transition-all",
-              leaderboardType === 'most_exams' 
-                ? "bg-teal-500 text-white shadow-lg shadow-teal-500/30" 
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-            )}
-          >
-            Làm bài nhiều nhất
-          </button>
-          <button
-            onClick={() => setLeaderboardType('highest_avg')}
-            className={cn(
-              "px-6 py-2 rounded-full font-bold transition-all",
-              leaderboardType === 'highest_avg' 
-                ? "bg-teal-500 text-white shadow-lg shadow-teal-500/30" 
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-            )}
-          >
-            Điểm trung bình cao nhất
-          </button>
-        </div>
-      </ScrollReveal>
-
-      <div className={cn(
-        "border rounded-3xl overflow-hidden shadow-2xl transition-colors duration-300",
-        "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
-      )}>
-        {isLoading ? (
-          <div className="p-12 flex justify-center">
-            <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        ) : topUsers.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 dark:text-slate-400">
-            Chưa có dữ liệu. Hãy là người đầu tiên ghi danh!
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className={cn(
-                "border-b transition-colors duration-300",
-                "bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800"
-              )}>
-                <tr>
-                  <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs w-20 text-center">Hạng</th>
-                  <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs">Thí sinh</th>
-                  <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs">Lớp</th>
-                  <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs text-center">Số bài làm</th>
-                  <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs text-right">Điểm trung bình</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {topUsers.map((user, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 text-center">
-                      {idx === 0 ? <span className="text-2xl">🥇</span> :
-                       idx === 1 ? <span className="text-2xl">🥈</span> :
-                       idx === 2 ? <span className="text-2xl">🥉</span> :
-                       <span className="text-slate-500 dark:text-slate-400 font-bold">{idx + 1}</span>}
-                    </td>
-                    <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{user.student_name}</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{user.student_class}</td>
-                    <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">
-                      {user.total_exams}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="px-4 py-1.5 rounded-full text-sm font-black bg-teal-500/10 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 border border-teal-500/30">
-                        {user.avg_score} / 10
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-};
 
 const AdminAccess = ({ setView }: { setView: (v: 'main' | 'admin' | 'exam-room') => void }) => {
   return (
@@ -3297,7 +3139,11 @@ const LanguageSwitcher = () => {
 import { StudentAnnouncements } from './components/StudentAnnouncements';
 
 function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory' }) {
-  const [view, setView] = useState<'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory'>(initialView);
+  const [view, setView] = useState<'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory'>(() => {
+    if (initialView !== 'gateway') return initialView;
+    const saved = localStorage.getItem('lkt_student_session');
+    return saved ? 'exam-room' : 'gateway';
+  });
   const [showProfile, setShowProfile] = useState(false);
   const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string } | null>(() => {
     const saved = localStorage.getItem('lkt_student_session');
@@ -3321,6 +3167,32 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
     const savedSession = localStorage.getItem('lkt_student_session');
     if (!savedSession && view !== 'gateway' && view !== 'admin') {
       setView('gateway');
+    } else if (savedSession && view !== 'gateway' && view !== 'admin') {
+      // Validate session
+      const parsed = JSON.parse(savedSession);
+      const sessionId = `${parsed.name}_${parsed.studentClass}`.replace(/\s+/g, '_');
+      getDoc(doc(db, 'student_sessions', sessionId)).then(sessionDoc => {
+        if (sessionDoc.exists()) {
+          const data = sessionDoc.data();
+          const lastActive = data.lastActive;
+          const isToday = lastActive && new Date(lastActive).toDateString() === new Date().toDateString();
+          if (!isToday && data.status !== 'blocked') {
+            deleteDoc(doc(db, 'student_sessions', sessionId));
+            localStorage.removeItem('lkt_student_session');
+            setStudentInfo(null);
+            setView('gateway');
+          } else if (data.status === 'blocked') {
+            // Let GatewayPage handle blocked status
+            setView('gateway');
+          }
+        } else {
+          localStorage.removeItem('lkt_student_session');
+          setStudentInfo(null);
+          setView('gateway');
+        }
+      }).catch(err => {
+        console.error("Error validating session:", err);
+      });
     }
   }, [view]);
 
@@ -3454,7 +3326,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
         onEnter={(info) => {
           localStorage.setItem('lkt_student_session', JSON.stringify(info));
           setStudentInfo(info);
-          setView('main');
+          setView('exam-room');
         }} 
         onAdminAccess={() => setView('admin')} 
       />
@@ -3503,7 +3375,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
                 view === 'main' ? "text-teal-400" : "text-slate-400 hover:text-teal-400"
               )}
             >
-              Trang chủ
+              Phòng thí nghiệm
             </button>
             <button 
               onClick={() => setView('theory')} 
@@ -3607,7 +3479,6 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               <RecyclingSection />
               <PracticeExercises />
               <VirtualChemistryLab />
-              <Top10Leaderboard />
             </motion.div>
           ) : view === 'announcements' ? (
             <motion.div
