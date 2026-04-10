@@ -667,7 +667,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                       : "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
                   )}
                 >
-                  CỔNG PHÒNG THÍ NGHIỆM
+                  VÀO PHÒNG THI
                   <ChevronRight className="w-6 h-6" />
                 </button>
 
