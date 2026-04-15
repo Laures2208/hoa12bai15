@@ -11,6 +11,7 @@ import { cn } from '../lib/utils';
 import 'katex/dist/katex.min.css';
 import { ParticleBackground } from './ParticleBackground';
 import { fixLatex } from '../utils/latexHelper';
+import { useAntiCheat } from '../hooks/useAntiCheat';
 
 interface Question {
   id: string;
@@ -43,6 +44,20 @@ export const StudentExamRoom: React.FC = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  const { requestFullscreen, isAway, awayTimeLeft } = useAntiCheat({
+    isEnabled: !loading && !!exam,
+    maxViolations: 3,
+    maxAwayTimeMs: 5000,
+    onViolation: (count, max) => {
+      // We don't use alert here because it blocks the thread and stops the timer
+      // The full screen warning will be shown instead
+    },
+    onForceSubmit: (reason) => {
+      alert(`${reason} Hệ thống sẽ tự động nộp bài.`);
+      handleSubmit(true);
+    }
+  });
 
   // 1. Tải dữ liệu từ Firestore
   useEffect(() => {
@@ -77,6 +92,12 @@ export const StudentExamRoom: React.FC = () => {
 
   // Đếm ngược thời gian
   useEffect(() => {
+    if (exam && !loading) {
+      requestFullscreen();
+    }
+  }, [exam, loading]);
+
+  useEffect(() => {
     if (timeLeft <= 0 || !exam) return;
     
     const timer = setInterval(() => {
@@ -110,8 +131,8 @@ export const StudentExamRoom: React.FC = () => {
     }));
   };
 
-  const handleSubmit = async () => {
-    if (window.confirm('Bạn có chắc chắn muốn nộp bài?')) {
+  const handleSubmit = async (force: boolean = false) => {
+    if (force || window.confirm('Bạn có chắc chắn muốn nộp bài?')) {
       // Logic nộp bài ở đây (ví dụ: tính điểm, lưu vào collection 'results', chuyển trang)
       
       // Update status to 'waiting'
@@ -165,6 +186,24 @@ export const StudentExamRoom: React.FC = () => {
             Quay lại thư viện
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (isAway) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-rose-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center">
+        <AlertCircle className="w-24 h-24 text-rose-500 mb-6 animate-pulse" />
+        <h2 className="text-3xl md:text-5xl font-black text-white mb-4">CẢNH BÁO VI PHẠM</h2>
+        <p className="text-xl text-rose-200 mb-8 max-w-2xl">
+          Bạn đã rời khỏi màn hình thi. Vui lòng quay lại ngay lập tức!
+        </p>
+        <div className="text-7xl font-mono font-bold text-rose-500">
+          {(awayTimeLeft / 1000).toFixed(1)}s
+        </div>
+        <p className="text-slate-400 mt-4">
+          Hệ thống sẽ tự động nộp bài khi hết thời gian.
+        </p>
       </div>
     );
   }
@@ -297,7 +336,7 @@ export const StudentExamRoom: React.FC = () => {
                     
                     return (
                       <button
-                        key={idx}
+                        key={`${currentQuestion.id}_option_${idx}`}
                         onClick={() => handleOptionSelect(currentQuestion.id, option)}
                         className={cn(
                           "flex items-start gap-4 p-4 rounded-2xl border text-left transition-all duration-200",

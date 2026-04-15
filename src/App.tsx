@@ -53,6 +53,7 @@ import { db } from './firebase';
 import { Routes, Route } from 'react-router-dom';
 import { StudentExamRoom } from './components/StudentExamRoom';
 import { StudentLibrary } from './components/StudentLibrary';
+import { useAntiCheat } from './hooks/useAntiCheat';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -658,7 +659,7 @@ const Leaderboard = () => {
         <div className="space-y-3">
           {leaders.map((leader, idx) => (
             <div 
-              key={idx} 
+              key={`${leader.student_name}_${leader.student_class}_${idx}`} 
               className={cn(
                 "flex items-center justify-between p-4 rounded-xl border",
                 idx === 0 ? "bg-yellow-500/10 border-yellow-500/30" : 
@@ -702,9 +703,13 @@ const Leaderboard = () => {
 const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' | 'exam-room' | 'gateway') => void, onOpenProfile: () => void }) => {
   const [examStarted, setExamStarted] = useState(false);
   const [currentExam, setCurrentExam] = useState<Exam | null>(null);
-  const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string } | null>(() => {
+  const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string, grade: '10' | '11' | '12' } | null>(() => {
     const saved = localStorage.getItem('lkt_student_session');
-    return saved ? JSON.parse(saved) : null;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { name: parsed.name, studentClass: parsed.studentClass, grade: parsed.grade || '12' };
+    }
+    return null;
   });
   const [preparedQuestions, setPreparedQuestions] = useState<any[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
@@ -796,100 +801,23 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
     };
   }, [examStarted, quizFinished]);
 
-  useEffect(() => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const { requestFullscreen, isAway, awayTimeLeft } = useAntiCheat({
+    isEnabled: !!(examStarted && !quizFinished && currentExam?.antiCheat),
+    maxViolations: 3,
+    maxAwayTimeMs: 5000,
+    onViolation: (count, max) => {
+      // We don't use alert here because it blocks the thread and stops the timer
+      // The full screen warning will be shown instead
+    },
+    onForceSubmit: (reason) => {
+      alert(`${reason} Hệ thống sẽ tự động nộp bài.`);
+      setShowConfirmSubmit(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+      handleFinishQuizRef.current();
+    }
+  });
 
-    const handleViolation = (newCount: number) => {
-      if (newCount > 3) {
-        alert('Bạn đã vi phạm quá 3 lần. Hệ thống sẽ tự động nộp bài.');
-        setShowConfirmSubmit(false);
-        if (timerRef.current) clearInterval(timerRef.current);
-        handleFinishQuizRef.current();
-      } else {
-        alert(`Bạn đã rời khỏi màn hình thi. Đây là lần vi phạm thứ ${newCount}/3. Nếu vi phạm quá 3 lần, hệ thống sẽ tự động nộp bài.`);
-      }
-    };
-
-    const handleFullscreenChange = () => {
-      if (isIOS) return; // Skip full-screen check on iOS
-      if (examStarted && !quizFinished) {
-        const isEnabled = currentExam?.antiCheat;
-        if (!isEnabled) return;
-
-        const isFullscreen = document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).msFullscreenElement;
-        if (!isFullscreen) {
-          setFullScreenViolations(prev => {
-            const newCount = prev + 1;
-            handleViolation(newCount);
-            return newCount;
-          });
-        }
-      }
-    };
-
-    const handleAway = () => {
-      if (examStarted && !quizFinished) {
-        const isEnabled = currentExam?.antiCheat;
-        if (!isEnabled) return;
-
-        if (!awayTimeoutRef.current) {
-          // 1. Count violation and warn immediately
-          setFullScreenViolations(prev => {
-            const newCount = prev + 1;
-            handleViolation(newCount);
-            return newCount;
-          });
-
-          // 2. Start 5s timer to submit if they don't return
-          awayTimeoutRef.current = setTimeout(() => {
-            alert('Bạn đã rời khỏi màn hình thi quá 5 giây. Hệ thống tự động nộp bài do vi phạm quy chế.');
-            setShowConfirmSubmit(false);
-            if (timerRef.current) clearInterval(timerRef.current);
-            handleFinishQuizRef.current();
-          }, 5000);
-        }
-      }
-    };
-
-    const handleReturn = () => {
-      if (awayTimeoutRef.current) {
-        clearTimeout(awayTimeoutRef.current);
-        awayTimeoutRef.current = null;
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        handleAway();
-      } else {
-        handleReturn();
-      }
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('msfullscreenchange', handleFullscreenChange);
-    
-    // Trên mobile, blur có thể nhạy (ví dụ khi kéo thanh thông báo), nhưng vẫn cần thiết để chống chia đôi màn hình.
-    window.addEventListener('blur', handleAway);
-    window.addEventListener('focus', handleReturn);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
-      window.removeEventListener('blur', handleAway);
-      window.removeEventListener('focus', handleReturn);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (awayTimeoutRef.current) {
-        clearTimeout(awayTimeoutRef.current);
-        awayTimeoutRef.current = null;
-      }
-    };
-  }, [examStarted, currentExam, quizFinished]);
-
-  const submitResults = async (info: { name: string, studentClass: string }, finalTimeLeft: number) => {
+  const submitResults = async (info: { name: string, studentClass: string, grade?: string }, finalTimeLeft: number) => {
     setIsSubmitting(true);
     const finalAnswers = answersRef.current;
     
@@ -985,6 +913,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
           examId: currentExam.id,
           studentName: info.name,
           studentClass: info.studentClass,
+          grade: info.grade || '12',
           score: finalScore,
           totalPoints: finalTotalPoints,
           correctAnswers: correctAnswers,
@@ -1211,22 +1140,25 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
       const tfPointsPerQ = tfQs.length > 0 ? tfPoints / tfQs.length : 0;
       const saPointsPerQ = saQs.length > 0 ? saPoints / saQs.length : 0;
 
-      return questions.map(q => {
+      return questions.map((q, qIndex) => {
         let points = 0;
         if (q.type === 'multiple_choice') points = mcPointsPerQ;
         else if (q.type === 'true_false') points = tfPointsPerQ;
         else if (q.type === 'short_answer') points = saPointsPerQ;
 
+        const uniqueId = `${q.id}_${qIndex}`;
+
         if (q.type === 'multiple_choice' && q.options) {
           const optionsWithIndices = q.options.map((opt, idx) => ({ text: opt, originalIndex: idx }));
           return {
             ...q,
+            id: uniqueId,
             points,
             shuffledOptions: exam.shuffleAnswers ? shuffleArray(optionsWithIndices) : optionsWithIndices,
             correctAnswer: q.answer ? q.answer.charCodeAt(0) - 65 : 0 // Convert 'A' to 0, 'B' to 1...
           };
         }
-        return { ...q, points, shuffledOptions: [] };
+        return { ...q, id: uniqueId, points, shuffledOptions: [] };
       });
     }
 
@@ -1240,10 +1172,11 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
     
     const combined = shuffleArray([...selectedTheory, ...selectedExercise]);
     
-    return combined.map(q => {
+    return combined.map((q, qIndex) => {
       const optionsWithIndices = q.options.map((opt, idx) => ({ text: opt, originalIndex: idx }));
       return {
         ...q,
+        id: `${q.id}_${qIndex}`,
         type: 'multiple_choice',
         shuffledOptions: shuffleArray(optionsWithIndices)
       };
@@ -1255,19 +1188,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
     const isEnabled = exam.antiCheat;
     
     if (isEnabled) {
-      const docEl = document.documentElement as any;
-      const requestFS = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
-      
-      if (requestFS) {
-        try {
-          await requestFS.call(docEl);
-        } catch (err) {
-          console.warn("Lỗi toàn màn hình (có thể do thiết bị di động không hỗ trợ):", err);
-          // Không return ở đây để các thiết bị như iPhone/iPad vẫn có thể thi bình thường
-        }
-      } else {
-        console.warn("Trình duyệt không hỗ trợ API toàn màn hình.");
-      }
+      await requestFullscreen();
     }
     const progressKey = `exam_progress_${exam.id}_${studentInfo?.name}_${studentInfo?.studentClass}`;
     let saved = null;
@@ -1435,6 +1356,24 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
         onTakeExam={handleStartExam} 
         onOpenProfile={onOpenProfile}
       />
+    );
+  }
+
+  if (isAway && !quizFinished) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-rose-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center">
+        <AlertCircle className="w-24 h-24 text-rose-500 mb-6 animate-pulse" />
+        <h2 className="text-3xl md:text-5xl font-black text-white mb-4">CẢNH BÁO VI PHẠM</h2>
+        <p className="text-xl text-rose-200 mb-8 max-w-2xl">
+          Bạn đã rời khỏi màn hình thi. Vui lòng quay lại ngay lập tức!
+        </p>
+        <div className="text-7xl font-mono font-bold text-rose-500">
+          {(awayTimeLeft / 1000).toFixed(1)}s
+        </div>
+        <p className="text-slate-400 mt-4">
+          Hệ thống sẽ tự động nộp bài khi hết thời gian.
+        </p>
+      </div>
     );
   }
 
@@ -1740,7 +1679,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
             <div className="space-y-6 mb-10">
               {currentQ.type === 'multiple_choice' && currentQ.shuffledOptions.map((option: any, idx: number) => (
                 <button
-                  key={idx}
+                  key={`${currentQ.id}_option_${idx}`}
                   onClick={() => handleSelectOption(idx)}
                   className={cn(
                     "w-full text-left p-5 rounded-2xl border-2 transition-all duration-200 flex items-center justify-between group",
@@ -2043,6 +1982,7 @@ const AdminPortal = () => {
   const [results, setResults] = useState<any[]>([]);
   const [exams, setExams] = useState<any[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>('all');
+  const [filterGrade, setFilterGrade] = useState<'all' | '10' | '11' | '12'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -2078,6 +2018,10 @@ const AdminPortal = () => {
             ...doc.data()
           } as any));
           
+          if (filterGrade !== 'all') {
+            resultsArray = resultsArray.filter(res => res.grade === filterGrade);
+          }
+
           if (selectedExamId !== 'all') {
             resultsArray = resultsArray.filter(res => res.examId === selectedExamId);
           }
@@ -2118,7 +2062,7 @@ const AdminPortal = () => {
       if (unsubscribeResults) unsubscribeResults();
       if (unsubscribeExams) unsubscribeExams();
     };
-  }, [isAuthenticated, selectedExamId]);
+  }, [isAuthenticated, selectedExamId, filterGrade]);
 
   const handleClearData = async () => {
     if (window.confirm(`Bạn có chắc chắn muốn xóa TOÀN BỘ kết quả thi không? Hành động này không thể hoàn tác!`)) {
@@ -2329,12 +2273,22 @@ const AdminPortal = () => {
           <div className="flex justify-between items-center mb-8">
             <div className="flex gap-4">
               <select
+                value={filterGrade}
+                onChange={(e) => setFilterGrade(e.target.value as any)}
+                className="px-6 py-2 rounded-full font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 outline-none focus:border-teal-500"
+              >
+                <option value="all">Tất cả khối lớp</option>
+                <option value="10">Khối 10</option>
+                <option value="11">Khối 11</option>
+                <option value="12">Khối 12</option>
+              </select>
+              <select
                 value={selectedExamId}
                 onChange={(e) => setSelectedExamId(e.target.value)}
                 className="px-6 py-2 rounded-full font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 outline-none focus:border-teal-500"
               >
                 <option value="all">Tất cả bài thi</option>
-                {exams.map(exam => (
+                {exams.filter(e => filterGrade === 'all' || e.grade === filterGrade).map(exam => (
                   <option key={exam.id} value={exam.id}>{exam.title}</option>
                 ))}
               </select>
@@ -2511,7 +2465,7 @@ const AdminPortal = () => {
                                 const question = exam?.questions?.find((q: any) => q.id === ans.questionId);
                                 if (!question) return null;
                                 return (
-                                  <div key={idx} className={cn(
+                                  <div key={`${res.id}_ans_${idx}`} className={cn(
                                     "p-4 rounded-xl border",
                                     ans.isCorrect ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"
                                   )}>
@@ -2804,7 +2758,7 @@ const RecyclingSection = () => {
                     const Icon = step.icon;
                     return (
                       <div 
-                        key={idx} 
+                        key={`step_${idx}`} 
                         className="group relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(20,184,166,0.4)] hover:border-teal-500/50 cursor-pointer"
                         onClick={() => setActiveCard(activeCard === idx ? null : idx)}
                         onMouseLeave={() => setActiveCard(null)}
@@ -2942,7 +2896,7 @@ const PracticeExercises = () => {
       <div className="space-y-4">
         {EXERCISES[activeTab].map((exercise, idx) => (
           <div 
-            key={idx} 
+            key={`${activeTab}_exercise_${idx}`} 
             className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden transition-all duration-300 hover:border-blue-500/50 shadow-sm dark:shadow-none"
           >
             <button
@@ -3142,12 +3096,23 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
   const [view, setView] = useState<'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory'>(() => {
     if (initialView !== 'gateway') return initialView;
     const saved = localStorage.getItem('lkt_student_session');
-    return saved ? 'exam-room' : 'gateway';
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.grade === '10' || parsed.grade === '11') {
+        return 'theory';
+      }
+      return 'exam-room';
+    }
+    return 'gateway';
   });
   const [showProfile, setShowProfile] = useState(false);
-  const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string } | null>(() => {
+  const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string, grade: '10' | '11' | '12' } | null>(() => {
     const saved = localStorage.getItem('lkt_student_session');
-    return saved ? JSON.parse(saved) : null;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { name: parsed.name, studentClass: parsed.studentClass, grade: parsed.grade || '12' };
+    }
+    return null;
   });
   const [antiCheat22, setAntiCheat22] = useState(true);
   const [antiCheat45, setAntiCheat45] = useState(true);
@@ -3356,7 +3321,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
       )}>
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
           <div className="flex flex-col items-start">
-            <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => setView('main')}>
+            <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => setView((!studentInfo || studentInfo.grade === '12') ? 'main' : 'theory')}>
               <div className="w-10 h-10 bg-teal-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(20,184,166,0.3)]">
                 <Layers className="w-6 h-6 text-white" />
               </div>
@@ -3368,15 +3333,17 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
           </div>
           
           <div className="flex items-center gap-3 md:gap-6">
-            <button 
-              onClick={() => setView('main')} 
-              className={cn(
-                "text-xs md:text-sm font-bold transition-colors hidden md:block nav-energy-btn",
-                view === 'main' ? "text-teal-400" : "text-slate-400 hover:text-teal-400"
-              )}
-            >
-              Phòng thí nghiệm
-            </button>
+            {(!studentInfo || studentInfo.grade === '12') && (
+              <button 
+                onClick={() => setView('main')} 
+                className={cn(
+                  "text-xs md:text-sm font-bold transition-colors hidden md:block nav-energy-btn",
+                  view === 'main' ? "text-teal-400" : "text-slate-400 hover:text-teal-400"
+                )}
+              >
+                Phòng thí nghiệm
+              </button>
+            )}
             <button 
               onClick={() => setView('theory')} 
               className={cn(
@@ -3426,7 +3393,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
       <ProfileModal 
         isOpen={showProfile} 
         onClose={() => setShowProfile(false)} 
-        studentInfo={studentInfo || { name: '', studentClass: '' }} 
+        studentInfo={studentInfo || { name: '', studentClass: '', grade: '12' }} 
       />
 
       <AnimatePresence>
@@ -3465,7 +3432,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
 
       <main className="pt-20">
         <AnimatePresence mode="wait">
-          {view === 'main' ? (
+          {view === 'main' && (!studentInfo || studentInfo.grade === '12') ? (
             <motion.div
               key="main"
               initial={{ opacity: 0 }}
@@ -3498,7 +3465,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
                   <p className="text-slate-400">Cập nhật thông tin mới nhất từ giáo viên</p>
                 </div>
               </div>
-              <StudentAnnouncements studentInfo={studentInfo || { name: '', studentClass: '' }} isAdmin={false} />
+              <StudentAnnouncements studentInfo={studentInfo || { name: '', studentClass: '', grade: '12' }} isAdmin={false} />
             </motion.div>
           ) : view === 'theory' ? (
             <motion.div
@@ -3518,7 +3485,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
                   <p className="text-slate-400">Tài liệu và bài giảng hóa học</p>
                 </div>
               </div>
-              <StudentTheory />
+              <StudentTheory studentInfo={studentInfo || { name: '', studentClass: '', grade: '12' }} />
             </motion.div>
           ) : view === 'admin' ? (
             <motion.div

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { BookOpen, Download, Search, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -73,15 +73,21 @@ interface Theory {
   content: string;
   sections?: TheorySection[];
   author: string;
+  grade?: '10' | '11' | '12';
   createdAt: any;
   imageUrl?: string;
 }
 
-export const StudentTheory: React.FC = () => {
+interface StudentTheoryProps {
+  studentInfo?: { name: string; studentClass: string; grade: '10' | '11' | '12' };
+}
+
+export const StudentTheory: React.FC<StudentTheoryProps> = ({ studentInfo }) => {
   const [theories, setTheories] = useState<Theory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTheory, setSelectedTheory] = useState<Theory | null>(null);
+  const [selectedGrade, setSelectedGrade] = useState<'10' | '11' | '12' | 'all'>(studentInfo?.grade || 'all');
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [firestoreError, setFirestoreError] = useState<Error | null>(null);
@@ -101,7 +107,7 @@ export const StudentTheory: React.FC = () => {
   useEffect(() => {
     const q = query(collection(db, 'theories'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Theory[] = [];
+      let list: Theory[] = [];
       snapshot.forEach(doc => {
         list.push({ id: doc.id, ...doc.data() } as Theory);
       });
@@ -117,23 +123,34 @@ export const StudentTheory: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [studentInfo?.grade]);
 
   const handleDownloadWord = async (theory: Theory) => {
     if (!contentRef.current) return;
 
     try {
-      const { asBlob } = await import('html-docx-js-typescript');
-      const { saveAs } = await import('file-saver');
+      const htmlContent = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head><meta charset='utf-8'><title>${theory.title}</title></head><body>
+        <h1>${theory.title}</h1>
+        ${contentRef.current.innerHTML}
+        </body></html>
+      `;
       
-      const htmlString = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${theory.title}</title></head><body><h1>${theory.title}</h1>${contentRef.current.innerHTML}</body></html>`;
+      const blob = new Blob(['\ufeff', htmlContent], {
+        type: 'application/msword'
+      });
       
-      const blob = await asBlob(htmlString);
-      if (blob) {
-        saveAs(blob as Blob, `${theory.title.replace(/\s+/g, '_')}.docx`);
-      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${(theory.title || 'Ly_thuyet').replace(/\s+/g, '_')}.doc`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Error generating docx:", error);
+      console.error("Error generating doc:", error);
       alert("Có lỗi xảy ra khi tạo file Word. Vui lòng thử lại.");
     }
   };
@@ -166,11 +183,15 @@ export const StudentTheory: React.FC = () => {
     }
   };
 
-  const filteredTheories = theories.filter(t => 
-    t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.sections?.some(s => s.content.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredTheories = theories.filter(t => {
+    const matchesSearch = (t.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+      (t.content?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      t.sections?.some(s => (s.content?.toLowerCase() || '').includes(searchTerm.toLowerCase()));
+    
+    const matchesGrade = selectedGrade === 'all' || t.grade === selectedGrade || !t.grade;
+    
+    return matchesSearch && matchesGrade;
+  });
 
   if (isLoading) {
     return (
@@ -184,21 +205,45 @@ export const StudentTheory: React.FC = () => {
     <div className="space-y-6">
       {!selectedTheory ? (
         <>
-          <div className="relative mb-8">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Tìm kiếm lý thuyết..."
-              className="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-teal-500 shadow-lg backdrop-blur-sm transition-colors"
-            />
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Tìm kiếm lý thuyết..."
+                className="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-teal-500 shadow-lg backdrop-blur-sm transition-colors"
+              />
+            </div>
+            <div className="flex gap-2">
+              {(['all', '10', '11', '12'] as const).map((grade) => (
+                <button
+                  key={grade}
+                  onClick={() => setSelectedGrade(grade)}
+                  className={cn(
+                    "px-6 py-4 rounded-2xl font-bold transition-all whitespace-nowrap border",
+                    selectedGrade === grade
+                      ? "bg-teal-500 text-white border-teal-500 shadow-lg shadow-teal-500/25"
+                      : "bg-slate-800/50 text-slate-400 border-slate-700/50 hover:bg-slate-700 hover:text-white"
+                  )}
+                >
+                  {grade === 'all' ? 'Tất cả' : `Khối ${grade}`}
+                </button>
+              ))}
+            </div>
           </div>
 
           {filteredTheories.length === 0 ? (
             <div className="text-center py-12 text-slate-500 bg-slate-800/30 rounded-2xl border border-slate-700/50">
               <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p>Không tìm thấy bài lý thuyết nào.</p>
+              <p>
+                {searchTerm 
+                  ? `Không tìm thấy kết quả nào cho "${searchTerm}"${selectedGrade !== 'all' ? ` trong Khối ${selectedGrade}` : ''}.`
+                  : selectedGrade !== 'all' 
+                    ? `Không có dữ liệu lý thuyết cho Khối ${selectedGrade}.` 
+                    : 'Không có bài lý thuyết nào.'}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -222,7 +267,7 @@ export const StudentTheory: React.FC = () => {
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-white mb-2 line-clamp-2 group-hover:text-teal-400 transition-colors">{theory.title}</h3>
                       <p className="text-sm text-slate-400 line-clamp-3 mb-4">
-                        {theory.content.replace(/[#*`_~]/g, '')}
+                        {theory.content?.replace(/[#*`_~]/g, '') || ''}
                       </p>
                       <div className="text-xs text-slate-500">
                         {theory.createdAt?.toDate ? new Date(theory.createdAt.toDate()).toLocaleDateString('vi-VN') : 'Đang cập nhật'}

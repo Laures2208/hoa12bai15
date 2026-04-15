@@ -55,7 +55,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
           return (
             <button
-              key={index}
+              key={`${question.id}_option_${index}`}
               onClick={() => onSelect?.(index)}
               disabled={showCorrect}
               className={cn(

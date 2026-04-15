@@ -53,7 +53,7 @@ export const ExamEngine: React.FC<{ type: '22' | '45', onFinish: (score: number)
       <div className="text-lg mb-6">{questions[currentIdx].content}</div>
       <div className="grid grid-cols-1 gap-4">
         {questions[currentIdx].options.map((opt: string, i: number) => (
-          <button key={i} className="p-4 bg-slate-800 rounded-xl hover:bg-teal-500" onClick={() => handleAnswer(opt)}>{opt}</button>
+          <button key={`${questions[currentIdx].id}_option_${i}`} className="p-4 bg-slate-800 rounded-xl hover:bg-teal-500" onClick={() => handleAnswer(opt)}>{opt}</button>
         ))}
       </div>
     </div>

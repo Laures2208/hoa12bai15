@@ -9,6 +9,7 @@ interface StudentSession {
   id: string;
   name: string;
   studentClass: string;
+  grade: '10' | '11' | '12';
   status: 'waiting' | 'approved' | 'blocked';
   lastActive: number;
 }
@@ -18,6 +19,7 @@ export const Gatekeeper = () => {
   const [autoApprove, setAutoApprove] = useState(true);
   const [passcode, setPasscode] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [filterGrade, setFilterGrade] = useState<'all' | '10' | '11' | '12'>('all');
 
   useEffect(() => {
     // Check and reset if it's a new day
@@ -40,10 +42,15 @@ export const Gatekeeper = () => {
     // Fetch students
     const q = query(collection(db, 'student_sessions'));
     const unsubStudents = onSnapshot(q, (snapshot) => {
-      const list: StudentSession[] = [];
+      let list: StudentSession[] = [];
       snapshot.forEach(doc => {
         list.push({ id: doc.id, ...doc.data() } as StudentSession);
       });
+      
+      if (filterGrade !== 'all') {
+        list = list.filter(s => s.grade === filterGrade);
+      }
+
       // Sort: waiting first, then approved, then blocked
       list.sort((a, b) => {
         const order = { waiting: 0, approved: 1, blocked: 2 };
@@ -57,7 +64,7 @@ export const Gatekeeper = () => {
       unsubSettings();
       unsubStudents();
     };
-  }, []);
+  }, [filterGrade]);
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
@@ -200,10 +207,22 @@ export const Gatekeeper = () => {
         </div>
 
         <div className="col-span-1 md:col-span-2 bg-slate-950 border border-slate-800 rounded-xl p-6 flex flex-col">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-teal-500" />
-            Danh sách Học sinh ({students.length})
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Users className="w-5 h-5 text-teal-500" />
+              Danh sách Học sinh ({students.length})
+            </h3>
+            <select
+              value={filterGrade}
+              onChange={(e) => setFilterGrade(e.target.value as any)}
+              className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-teal-500 text-sm font-medium"
+            >
+              <option value="all">Tất cả khối lớp</option>
+              <option value="10">Khối 10</option>
+              <option value="11">Khối 11</option>
+              <option value="12">Khối 12</option>
+            </select>
+          </div>
           
           <div className="flex-1 overflow-y-auto pr-2 space-y-3 max-h-[500px]">
             {students.length === 0 ? (
@@ -218,7 +237,7 @@ export const Gatekeeper = () => {
                 )}>
                   <div>
                     <div className="font-bold text-white text-lg">{student.name}</div>
-                    <div className="text-sm text-slate-400">Lớp: {student.studentClass}</div>
+                    <div className="text-sm text-slate-400">Lớp: {student.studentClass} {student.grade ? `- Khối ${student.grade}` : ''}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     {student.status === 'waiting' && (

@@ -14,7 +14,7 @@ import 'katex/dist/katex.min.css';
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  studentInfo: { name: string; studentClass: string };
+  studentInfo: { name: string; studentClass: string; grade?: string };
 }
 
 interface Stats {

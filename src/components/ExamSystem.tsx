@@ -244,7 +244,7 @@ export const ExamSystem = () => {
               <div className="grid grid-cols-1 gap-4">
                 {questions[currentStep].options.map((opt, idx) => (
                   <button
-                    key={idx}
+                    key={`${questions[currentStep].id}_option_${idx}`}
                     onClick={() => setUserAnswers({...userAnswers, [questions[currentStep].id]: opt})}
                     className={cn(
                       "p-4 rounded-2xl border-2 text-left transition-all flex items-center gap-4",

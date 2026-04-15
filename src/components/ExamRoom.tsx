@@ -35,6 +35,7 @@ export interface Exam {
   questionCount: number;
   description: string;
   antiCheat: boolean;
+  grade?: '10' | '11' | '12';
   shuffleQuestions?: boolean;
   shuffleAnswers?: boolean;
   allowReview?: boolean;
@@ -71,7 +72,7 @@ interface Result {
 
 interface ExamRoomProps {
   isAdmin?: boolean;
-  studentInfo?: { name: string; studentClass: string };
+  studentInfo?: { name: string; studentClass: string; grade: '10' | '11' | '12' };
   onTakeExam?: (exam: Exam, resume?: boolean) => void;
   onOpenProfile?: () => void;
 }
@@ -95,6 +96,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
   // Form state
   const [title, setTitle] = useState('');
   const [type, setType] = useState('Luyện tập');
+  const [grade, setGrade] = useState<'10' | '11' | '12'>('12');
   const [timeLimit, setTimeLimit] = useState(45);
   const [questionCount, setQuestionCount] = useState(40);
   const [description, setDescription] = useState('');
@@ -116,10 +118,13 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
   useEffect(() => {
     const q = query(collection(db, 'exams_bank'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const examData: Exam[] = [];
+      let examData: Exam[] = [];
       snapshot.forEach((doc) => {
         examData.push({ id: doc.id, ...doc.data() } as Exam);
       });
+      if (!isAdmin && studentInfo?.grade) {
+        examData = examData.filter(exam => exam.grade === studentInfo.grade || !exam.grade); // fallback for old exams
+      }
       setExams(examData);
     });
     return () => unsubscribe();
@@ -171,6 +176,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
   const resetForm = () => {
     setTitle('');
     setType('Luyện tập');
+    setGrade('12');
     setTimeLimit(45);
     setQuestionCount(40);
     setDescription('');
@@ -194,6 +200,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
       const examData = {
         title: title.trim(),
         type,
+        grade,
         timeLimit: Number(timeLimit),
         questionCount: Number(questionCount),
         description: description.trim(),
@@ -235,6 +242,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
     setEditingExamId(exam.id);
     setTitle(exam.title);
     setType(exam.type);
+    setGrade(exam.grade || '12');
     setTimeLimit(exam.timeLimit);
     setQuestionCount(exam.questionCount);
     setDescription(exam.description);
@@ -555,7 +563,18 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                     placeholder="VD: Đề thi thử THPT Quốc gia 2026..."
                   />
                 </div>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-5 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">Khối lớp</label>
+                    <select 
+                      value={grade} onChange={e => setGrade(e.target.value as '10' | '11' | '12')}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-teal-500"
+                    >
+                      <option value="10">Khối 10</option>
+                      <option value="11">Khối 11</option>
+                      <option value="12">Khối 12</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-1">Phân loại</label>
                     <select 
@@ -675,7 +694,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                               className="mt-4 space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar"
                             >
                               {questions.map((q, idx) => (
-                                <div key={idx} className="p-4 bg-slate-800/50 border border-slate-700 rounded-2xl space-y-2">
+                                <div key={`${q.id || 'q'}_${idx}`} className="p-4 bg-slate-800/50 border border-slate-700 rounded-2xl space-y-2">
                                   <div className="flex justify-between items-start gap-4">
                                     <span className="text-teal-400 font-bold text-sm">Câu {q.id || idx + 1}</span>
                                     <span className="text-emerald-400 font-bold text-sm">
@@ -748,7 +767,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                                   ) : (
                                     <div className="grid grid-cols-2 gap-2">
                                       {q.options?.map((opt, oIdx) => (
-                                        <div key={oIdx} className="text-xs text-slate-400 bg-slate-900/50 p-2 rounded-lg">
+                                        <div key={`${q.id || 'q'}_opt_${oIdx}`} className="text-xs text-slate-400 bg-slate-900/50 p-2 rounded-lg">
                                           <ReactMarkdown 
                                             remarkPlugins={[remarkMath]} 
                                             rehypePlugins={[rehypeKatex]}

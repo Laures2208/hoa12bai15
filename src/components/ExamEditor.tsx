@@ -250,7 +250,7 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
       <div className="space-y-4">
         {questions.map((q, index) => (
           <motion.div
-            key={q.id}
+            key={`${q.id}_${index}`}
             layout
             className={cn(
               "bg-slate-900/80 border rounded-3xl p-6 transition-all duration-300",

@@ -114,6 +114,7 @@ export const AdminDashboard: React.FC = () => {
   const [examTitle, setExamTitle] = useState('');
   const [duration, setDuration] = useState(50);
   const [examType, setExamType] = useState('Bài thi');
+  const [examGrade, setExamGrade] = useState<'10' | '11' | '12'>('12');
   const [antiCheat, setAntiCheat] = useState(true);
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
@@ -123,6 +124,7 @@ export const AdminDashboard: React.FC = () => {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [aiPromptContent, setAiPromptContent] = useState('');
+  const [filterGrade, setFilterGrade] = useState<'all' | '10' | '11' | '12'>('all');
   const [firestoreError, setFirestoreError] = useState<Error | null>(null);
 
   const [exams, setExams] = useState<Exam[]>([]);
@@ -139,10 +141,13 @@ export const AdminDashboard: React.FC = () => {
       setIsLoadingExams(true);
       const q = query(collection(db, 'exams_bank'), orderBy('createdAt', 'desc'));
       const unsub = onSnapshot(q, (snapshot) => {
-        const list: Exam[] = [];
+        let list: Exam[] = [];
         snapshot.forEach(doc => {
           list.push({ id: doc.id, ...doc.data() } as Exam);
         });
+        if (filterGrade !== 'all') {
+          list = list.filter(e => e.grade === filterGrade);
+        }
         setExams(list);
         setIsLoadingExams(false);
       }, (error) => {
@@ -236,7 +241,7 @@ export const AdminDashboard: React.FC = () => {
             role: "user",
             parts: [
               {
-                text: `Bạn là một chuyên gia Hóa học 12. Hãy soạn một đề thi mới bám sát chương trình Hóa 12 cho dự án 'CHEMISTRY THEORY & QUIZZ'.
+                text: `Bạn là một chuyên gia Hóa học. Hãy soạn một đề thi mới bám sát chương trình Hóa ${examGrade} cho dự án 'CHEMISTRY THEORY & QUIZZ'.
                 ${aiPromptContent.trim() ? `\nNội dung tham khảo/yêu cầu cụ thể từ người dùng:\n"""\n${aiPromptContent}\n"""\n` : ''}
                 Ma trận đề thi:
                 - Phần I: ${matrix.multipleChoice} câu trắc nghiệm (4 lựa chọn).
@@ -246,7 +251,7 @@ export const AdminDashboard: React.FC = () => {
                 Yêu cầu:
                 1. Toàn bộ công thức hóa học phải được bọc trong LaTeX chuẩn. BẮT BUỘC sử dụng ngoặc nhọn cho lệnh \\ce (ví dụ: $\\ce{H2SO4}$, $\\ce{CO2}$). TUYỆT ĐỐI KHÔNG viết liền như $\\ceH2SO4$ hoặc $\\ceCO2$.
                 QUAN TRỌNG: Bạn PHẢI escape tất cả các dấu backslash (\\) trong công thức LaTeX thành double backslash (\\\\) để JSON hợp lệ. Ví dụ: \\\\frac{1}{2} thay vì \\frac{1}{2}, \\\\ce{H2O} thay vì \\ce{H2O}.
-                2. Nội dung bám sát chương trình Hóa 12 (Este, Lipit, Cacbohidrat, Amin, Amino axit, Polime, Kim loại...).
+                2. Nội dung bám sát chương trình Hóa ${examGrade}.
                 3. Xuất kết quả dưới dạng mảng JSON thuần túy, không có markdown bao quanh, với cấu trúc:
                 [
                   {
@@ -268,7 +273,11 @@ export const AdminDashboard: React.FC = () => {
 
       const result = await model;
       const generatedQuestions = parseAIJSON(result.text?.trim() || "[]");
-      setQuestions(generatedQuestions);
+      const uniqueQuestions = generatedQuestions.map((q: any) => ({
+        ...q,
+        id: Math.random().toString(36).substr(2, 9)
+      }));
+      setQuestions(uniqueQuestions);
       setActiveTab('editor');
     } catch (error) {
       console.error("AI Generation failed:", error);
@@ -313,6 +322,7 @@ export const AdminDashboard: React.FC = () => {
         })),
         createdAt: serverTimestamp(),
         type: examType,
+        grade: examGrade,
         timeLimit: duration || 50,
         questionCount: questions.length,
         description: `Đề thi gồm ${questions.length} câu hỏi.`,
@@ -468,18 +478,28 @@ export const AdminDashboard: React.FC = () => {
               {/* Matrix Config */}
               <div className="lg:col-span-2 space-y-8">
                 <div className="bg-slate-900/50 border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl">
-                    <div className="flex items-center justify-between mb-10">
-                      <div className="flex items-center gap-4">
-                        <div className="p-4 bg-teal-500/10 rounded-3xl border border-teal-500/20">
-                          <Zap className="w-8 h-8 text-teal-400" />
+                      <div className="flex items-center justify-between mb-10">
+                        <div className="flex items-center gap-4">
+                          <div className="p-4 bg-teal-500/10 rounded-3xl border border-teal-500/20">
+                            <Zap className="w-8 h-8 text-teal-400" />
+                          </div>
+                          <div>
+                            <h2 className="text-3xl font-black text-white tracking-tight">Ma trận đề thi</h2>
+                            <p className="text-slate-500 font-medium">Thiết lập cấu trúc đề thi Hóa học</p>
+                          </div>
                         </div>
-                        <div>
-                          <h2 className="text-3xl font-black text-white tracking-tight">Ma trận đề thi</h2>
-                          <p className="text-slate-500 font-medium">Thiết lập cấu trúc đề thi Hóa học 12</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={async () => {
+                        <div className="flex items-center gap-4">
+                          <select
+                            value={examGrade}
+                            onChange={(e) => setExamGrade(e.target.value as any)}
+                            className="bg-slate-800 border border-slate-700 rounded-2xl px-4 py-2 text-white font-bold focus:outline-none focus:border-teal-500 transition-all appearance-none"
+                          >
+                            <option value="10">Khối 10</option>
+                            <option value="11">Khối 11</option>
+                            <option value="12">Khối 12</option>
+                          </select>
+                          <button
+                            onClick={async () => {
                           const apiKey = await getGeminiApiKey();
                           if (!apiKey) {
                             setToastMessage("Vui lòng cấu hình API Key trong phần cài đặt để sử dụng tính năng AI.");
@@ -492,7 +512,7 @@ export const AdminDashboard: React.FC = () => {
                             const ai = new GoogleGenAI({ apiKey });
                             const model = ai.models.generateContent({
                               model: "gemini-3-flash-preview",
-                              contents: [{ role: "user", parts: [{ text: "Hãy gợi ý số lượng câu hỏi cho 3 phần (Trắc nghiệm, Đúng/Sai, Trả lời ngắn) cho một đề thi Hóa học 12 chuẩn 2026. Trả về JSON: {multipleChoice: number, trueFalse: number, shortAnswer: number}" }] }],
+                              contents: [{ role: "user", parts: [{ text: `Hãy gợi ý số lượng câu hỏi cho 3 phần (Trắc nghiệm, Đúng/Sai, Trả lời ngắn) cho một đề thi Hóa học ${examGrade} chuẩn 2026. Trả về JSON: {multipleChoice: number, trueFalse: number, shortAnswer: number}` }] }],
                               config: { responseMimeType: "application/json" }
                             });
                             const result = await model;
@@ -513,6 +533,7 @@ export const AdminDashboard: React.FC = () => {
                         AI Gợi ý
                       </button>
                     </div>
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
@@ -591,7 +612,11 @@ export const AdminDashboard: React.FC = () => {
                     <h3 className="text-xl font-black text-white uppercase tracking-tight">Nhập từ Word</h3>
                   </div>
                   <AdvancedWordProcessor onProcessed={(newQuestions) => {
-                    setQuestions(newQuestions);
+                    const uniqueQuestions = newQuestions.map((q: any) => ({
+                      ...q,
+                      id: Math.random().toString(36).substr(2, 9)
+                    }));
+                    setQuestions(uniqueQuestions);
                     setActiveTab('editor');
                   }} />
                 </div>
@@ -608,7 +633,7 @@ export const AdminDashboard: React.FC = () => {
                       "Tự động tính toán đáp án Phần III",
                       "Tạo lời giải chi tiết cho từng câu"
                     ].map((rule, i) => (
-                      <li key={i} className="flex items-start gap-3 text-sm text-slate-400">
+                      <li key={`rule_${i}`} className="flex items-start gap-3 text-sm text-slate-400">
                         <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shadow-[0_0_8px_rgba(20,184,166,0.5)]" />
                         {rule}
                       </li>
@@ -642,6 +667,18 @@ export const AdminDashboard: React.FC = () => {
                       placeholder="VD: Kiểm tra giữa kỳ II"
                       className="w-full bg-slate-900 border border-slate-700 rounded-2xl py-3 px-5 text-white font-bold focus:outline-none focus:border-teal-500 transition-all"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Khối lớp</label>
+                    <select
+                      value={examGrade}
+                      onChange={e => setExamGrade(e.target.value as any)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-2xl py-3 px-5 text-white font-bold focus:outline-none focus:border-teal-500 transition-all appearance-none"
+                    >
+                      <option value="10">Khối 10</option>
+                      <option value="11">Khối 11</option>
+                      <option value="12">Khối 12</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Loại</label>
@@ -802,22 +839,35 @@ export const AdminDashboard: React.FC = () => {
                   <h2 className="text-3xl font-black text-white tracking-tight">Ngân hàng đề thi</h2>
                   <p className="text-slate-500 font-medium">Quản lý các đề thi đã lưu trong hệ thống</p>
                 </div>
-                <div className="flex items-center gap-4 bg-slate-900/50 p-2 rounded-2xl border border-slate-800">
-                  <div className="px-4 py-2 text-sm font-bold text-teal-400 border-r border-slate-800">
-                    {exams.length} Đề thi
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setEditingExamId(null);
-                      setQuestions([]);
-                      setExamTitle('');
-                      setActiveTab('matrix');
-                    }}
-                    className="px-4 py-2 text-sm font-bold text-white hover:text-teal-400 transition-colors flex items-center gap-2"
+                <div className="flex items-center gap-4">
+                  <select
+                    value={filterGrade}
+                    onChange={(e) => setFilterGrade(e.target.value as any)}
+                    className="bg-slate-900/50 border border-slate-800 rounded-2xl px-4 py-2 text-white font-bold focus:outline-none focus:border-teal-500 transition-all appearance-none"
                   >
-                    <Plus className="w-4 h-4" />
-                    Tạo đề mới
-                  </button>
+                    <option value="all">Tất cả khối lớp</option>
+                    <option value="10">Khối 10</option>
+                    <option value="11">Khối 11</option>
+                    <option value="12">Khối 12</option>
+                  </select>
+                  <div className="flex items-center gap-4 bg-slate-900/50 p-2 rounded-2xl border border-slate-800">
+                    <div className="px-4 py-2 text-sm font-bold text-teal-400 border-r border-slate-800">
+                      {exams.length} Đề thi
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setEditingExamId(null);
+                        setQuestions([]);
+                        setExamTitle('');
+                        setExamGrade('12');
+                        setActiveTab('matrix');
+                      }}
+                      className="px-4 py-2 text-sm font-bold text-white hover:text-teal-400 transition-colors flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Tạo đề mới
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -832,7 +882,13 @@ export const AdminDashboard: React.FC = () => {
                   <h3 className="text-xl font-bold text-white mb-2">Chưa có đề thi nào</h3>
                   <p className="text-slate-500 mb-8">Hãy bắt đầu bằng cách tạo đề thi mới từ ma trận hoặc file Word.</p>
                   <button 
-                    onClick={() => setActiveTab('matrix')}
+                    onClick={() => {
+                      setEditingExamId(null);
+                      setQuestions([]);
+                      setExamTitle('');
+                      setExamGrade('12');
+                      setActiveTab('matrix');
+                    }}
                     className="px-8 py-3 bg-teal-500 text-white font-bold rounded-2xl hover:bg-teal-400 transition-all shadow-lg shadow-teal-500/20"
                   >
                     Tạo đề ngay
@@ -888,6 +944,7 @@ export const AdminDashboard: React.FC = () => {
                               setSectionPoints(exam.sectionPoints || { multipleChoice: 3, trueFalse: 4, shortAnswer: 3 });
                               setDuration(exam.timeLimit || 50);
                               setExamType(exam.type || 'Bài thi');
+                              setExamGrade(exam.grade || '12');
                               setAntiCheat(exam.antiCheat !== undefined ? exam.antiCheat : true);
                               setShuffleQuestions(exam.shuffleQuestions || false);
                               setShuffleAnswers(exam.shuffleAnswers || false);
@@ -912,7 +969,14 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <h3 className="text-lg font-bold text-white mb-2 line-clamp-1">{exam.title}</h3>
+                      <h3 className="text-lg font-bold text-white mb-2 line-clamp-1">
+                        {exam.grade && (
+                          <span className="inline-block px-2 py-0.5 bg-teal-500/20 text-teal-400 text-xs rounded-md mr-2 align-middle">
+                            Khối {exam.grade}
+                          </span>
+                        )}
+                        {exam.title}
+                      </h3>
                       <div className="flex items-center gap-2 mb-4">
                         <span className="text-[10px] font-bold text-slate-500 uppercase">
                           {exam.questions.length} Câu hỏi

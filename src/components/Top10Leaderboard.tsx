@@ -8,6 +8,7 @@ export const Top10Leaderboard = () => {
   const [topUsers, setTopUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [leaderboardType, setLeaderboardType] = useState<'most_exams' | 'highest_avg'>('most_exams');
+  const [selectedGrade, setSelectedGrade] = useState<'10' | '11' | '12' | 'all'>('all');
 
   useEffect(() => {
     let unsubscribe: () => void;
@@ -39,10 +40,12 @@ export const Top10Leaderboard = () => {
             userStats.total_score += normalizedScore;
           });
           
-          const statsArray = Array.from(statsMap.values()).map(stat => ({
-            ...stat,
-            avg_score: stat.total_exams > 0 ? Number((stat.total_score / stat.total_exams).toFixed(2)) : 0
-          }));
+          const statsArray = Array.from(statsMap.values())
+            .filter(stat => selectedGrade === 'all' || stat.student_class.startsWith(selectedGrade))
+            .map(stat => ({
+              ...stat,
+              avg_score: stat.total_exams > 0 ? Number((stat.total_score / stat.total_exams).toFixed(2)) : 0
+            }));
           
           if (leaderboardType === 'most_exams') {
             statsArray.sort((a, b) => b.total_exams - a.total_exams || b.avg_score - a.avg_score);
@@ -64,7 +67,7 @@ export const Top10Leaderboard = () => {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [leaderboardType]);
+  }, [leaderboardType, selectedGrade]);
 
   return (
     <div className="mt-8">
@@ -78,6 +81,23 @@ export const Top10Leaderboard = () => {
         </h2>
         <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">Top 10 Luyện Kim Sư xuất sắc nhất</p>
         
+        <div className="flex justify-center gap-2 mb-4 flex-wrap">
+          {(['all', '10', '11', '12'] as const).map((grade) => (
+            <button
+              key={grade}
+              onClick={() => setSelectedGrade(grade)}
+              className={cn(
+                "px-4 py-1.5 rounded-full font-bold transition-all text-xs border",
+                selectedGrade === grade 
+                  ? "bg-purple-500 text-white border-purple-500 shadow-lg shadow-purple-500/30" 
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700"
+              )}
+            >
+              {grade === 'all' ? 'Tất cả khối' : `Khối ${grade}`}
+            </button>
+          ))}
+        </div>
+
         <div className="flex justify-center gap-2 mb-4">
           <button
             onClick={() => setLeaderboardType('most_exams')}
@@ -133,7 +153,7 @@ export const Top10Leaderboard = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {topUsers.map((user, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                  <tr key={`${user.student_name}_${user.student_class}_${idx}`} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                     <td className="px-4 py-3 text-center">
                       {idx === 0 ? <span className="text-xl">🥇</span> :
                        idx === 1 ? <span className="text-xl">🥈</span> :

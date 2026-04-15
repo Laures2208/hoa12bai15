@@ -39,8 +39,7 @@ export const ExamResultsModal: React.FC<ExamResultsModalProps> = ({ examId, exam
   useEffect(() => {
     const q = query(
       collection(db, 'results'),
-      where('examId', '==', examId),
-      orderBy('createdAt', 'desc')
+      where('examId', '==', examId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -48,6 +47,14 @@ export const ExamResultsModal: React.FC<ExamResultsModalProps> = ({ examId, exam
         id: doc.id,
         ...doc.data()
       })) as StudentResult[];
+      
+      // Sort client-side to avoid missing index errors
+      data.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+      
       setResults(data);
       setIsLoading(false);
     }, (error) => {

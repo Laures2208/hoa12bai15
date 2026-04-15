@@ -79,7 +79,7 @@ interface Comment {
 }
 
 interface StudentAnnouncementsProps {
-  studentInfo: { name: string; studentClass: string };
+  studentInfo: { name: string; studentClass: string; grade?: string };
   isAdmin?: boolean;
   onEdit?: (announcement: Announcement) => void;
 }

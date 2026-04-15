@@ -60,7 +60,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 }
 
 interface GatewayPageProps {
-  onEnter: (studentInfo: { name: string; studentClass: string }) => void;
+  onEnter: (studentInfo: { name: string; studentClass: string; grade: '10' | '11' | '12' }) => void;
   onAdminAccess: () => void;
 }
 
@@ -68,6 +68,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
   const [time, setTime] = useState(new Date());
   const [name, setName] = useState('');
   const [studentClass, setStudentClass] = useState('');
+  const [grade, setGrade] = useState<'10' | '11' | '12' | ''>('');
   const [isExiting, setIsExiting] = useState(false);
   const [progress, setProgress] = useState({ examsCompleted: 0, totalScore: 0 });
   const [isLoadingProgress, setIsLoadingProgress] = useState(false);
@@ -117,8 +118,10 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
         const parsed = JSON.parse(savedSession);
         const studentName = parsed.name || '';
         const sClass = parsed.studentClass || '';
+        const sGrade = parsed.grade || '12';
         setName(studentName);
         setStudentClass(sClass);
+        setGrade(sGrade);
         fetchProgress(studentName, sClass);
         
         const sessionId = `${studentName}_${sClass}`.replace(/\s+/g, '_');
@@ -287,11 +290,12 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
       await setDoc(doc(db, 'student_sessions', sessionId), {
         name: info.name,
         studentClass: info.studentClass,
+        grade: grade,
         status: newStatus,
         lastActive: Date.now()
       }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, 'student_sessions/' + sessionId));
 
-      localStorage.setItem('lkt_student_session', JSON.stringify(info));
+      localStorage.setItem('lkt_student_session', JSON.stringify({ ...info, grade }));
       setStatus(newStatus);
       fetchProgress(info.name, info.studentClass);
       
@@ -403,7 +407,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
 
     setIsExiting(true);
     setTimeout(() => {
-      onEnter({ name: name.trim(), studentClass: studentClass.trim() });
+      onEnter({ name: name.trim(), studentClass: studentClass.trim(), grade: grade as '10' | '11' | '12' });
     }, 500); // 0.5s fade-out
   };
 
@@ -520,6 +524,26 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                     </div>
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">Khối lớp</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {(['10', '11', '12'] as const).map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setGrade(g)}
+                          className={cn(
+                            "py-2 rounded-xl border font-bold transition-all",
+                            grade === g 
+                              ? "bg-teal-500/20 border-teal-500 text-teal-400" 
+                              : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700"
+                          )}
+                        >
+                          Khối {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-slate-400 mb-2">Lớp</label>
                     <div className="relative">
                       <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
@@ -528,8 +552,12 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                         value={studentClass}
                         onChange={(e) => setStudentClass(e.target.value)}
                         placeholder="Ví dụ: 12A1"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                        className={cn(
+                          "w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all",
+                          !grade && "opacity-50 cursor-not-allowed"
+                        )}
                         required
+                        disabled={!grade}
                       />
                     </div>
                   </div>
@@ -547,6 +575,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                           localStorage.removeItem('lkt_student_session');
                           setName('');
                           setStudentClass('');
+                          setGrade('');
                           setProgress({ examsCompleted: 0, totalScore: 0 });
                         }}
                         className="px-4 py-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold rounded-xl transition-colors border border-rose-500/20 flex items-center justify-center gap-2"
@@ -678,6 +707,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                       setStatus('unregistered');
                       setName('');
                       setStudentClass('');
+                      setGrade('12');
                     }}
                     className="w-full py-3 mt-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 bg-slate-800/50 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700/50"
                   >
