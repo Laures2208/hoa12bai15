@@ -82,12 +82,14 @@ import {
   Lock,
   Unlock,
   Eye,
-  EyeOff
+  EyeOff,
+  Trophy
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { AdvancedWordProcessor } from './AdvancedWordProcessor';
 import { ExamEditor } from './ExamEditor';
 import { ExamResultsModal } from './ExamResultsModal';
+import { AdminLeaderboard } from './AdminLeaderboard';
 import { Question, Exam, QuestionType } from './ExamRoom';
 import { GoogleGenAI } from "@google/genai";
 import { getGeminiApiKey } from '../services/gemini';
@@ -131,6 +133,7 @@ export const AdminDashboard: React.FC = () => {
   const [isLoadingExams, setIsLoadingExams] = useState(false);
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [viewingResultsExam, setViewingResultsExam] = useState<Exam | null>(null);
+  const [selectedLeaderboardExam, setSelectedLeaderboardExam] = useState<string | null>(null);
 
   if (firestoreError) {
     throw firestoreError;
@@ -908,6 +911,13 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                         <div className="flex gap-2 opacity-100 transition-opacity">
                           <button 
+                            onClick={() => setSelectedLeaderboardExam(exam.id)}
+                            className="p-2 bg-slate-800 text-slate-400 hover:text-yellow-400 rounded-xl transition-colors"
+                            title="Xem Bảng xếp hạng"
+                          >
+                            <Trophy className="w-4 h-4" />
+                          </button>
+                          <button 
                             onClick={() => handleToggleOpen(exam.id, exam.isOpen)}
                             className={`p-2 rounded-xl transition-colors ${
                               exam.isOpen === false 
@@ -1030,6 +1040,35 @@ export const AdminDashboard: React.FC = () => {
             questions={viewingResultsExam.questions}
             onClose={() => setViewingResultsExam(null)}
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedLeaderboardExam && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-[#0f172a] border border-slate-800 rounded-3xl w-full max-w-4xl shadow-2xl relative my-8"
+            >
+              <button 
+                onClick={() => setSelectedLeaderboardExam(null)}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors z-10"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <div className="p-6 md:p-8 pt-10">
+                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Trophy className="w-6 h-6 text-yellow-500" />
+                  Quản lý Bảng xếp hạng
+                </h2>
+                <div className="max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
+                  <AdminLeaderboard examId={selectedLeaderboardExam} />
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

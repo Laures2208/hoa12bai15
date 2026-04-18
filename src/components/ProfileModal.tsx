@@ -28,10 +28,12 @@ interface Stats {
 
 interface ExamHistory {
   id: string;
+  examId: string;
   timestamp: any;
   score: number;
   total_questions: number;
   answers: any[];
+  examDetails?: any; // The exam doc
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, studentInfo }) => {
@@ -62,6 +64,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
   const fetchStats = async () => {
     setLoading(true);
     try {
+      // Fetch all exams_bank to get exam titles, allowReview, questions, etc.
+      const examsSnapshot = await getDocs(collection(db, 'exams_bank'));
+      const examsMap = new Map();
+      examsSnapshot.forEach(doc => {
+        examsMap.set(doc.id, doc.data());
+      });
+
       const q = query(
         collection(db, 'results'),
         where('studentName', '==', studentInfo.name),
@@ -79,10 +88,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
         const data = doc.data();
         historyData.push({
           id: doc.id,
+          examId: data.examId || '',
           timestamp: data.createdAt?.toDate() || new Date(),
           score: data.score || 0,
           total_questions: data.totalQuestions || 0,
-          answers: data.answers || []
+          answers: data.answers || [],
+          examDetails: data.examId ? examsMap.get(data.examId) : null
         });
         
         totalExams++;
@@ -205,29 +216,37 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
                     </div>
                     <div className="max-h-60 overflow-y-auto">
                       {history.length > 0 ? (
-                        history.map((exam, index) => (
+                        history.map((exam, index) => {
+                          const title = exam.examDetails?.title || `Bài thi ${history.length - index}`;
+                          const isReviewAllowed = exam.examDetails?.allowReview !== false; // Admin controls this
+                          let maxPoints = 10;
+                          if (exam.examDetails?.sectionPoints) {
+                            maxPoints = Number(Object.values(exam.examDetails.sectionPoints).reduce((a: number, b: any) => a + Number(b), 0));
+                          }
+
+                          return (
                           <div 
                             key={exam.id}
-                            onClick={() => showAnswers && setSelectedExam(exam)}
+                            onClick={() => setSelectedExam(exam)}
                             className={cn(
-                              "p-4 border-b border-slate-800/50 flex items-center justify-between transition-colors",
-                              showAnswers ? "hover:bg-slate-800/50 cursor-pointer" : "opacity-80 cursor-not-allowed"
+                              "p-4 border-b border-slate-800/50 flex items-center justify-between transition-colors hover:bg-slate-800/50 cursor-pointer"
                             )}
                           >
                             <div>
                               <div className="flex items-center gap-2">
-                                <p className="text-sm font-bold text-white">Bài thi {history.length - index}</p>
-                                {!showAnswers && <Lock className="w-3 h-3 text-slate-500" />}
+                                <p className="text-sm font-bold text-white max-w-[200px] truncate">{title}</p>
+                                {!isReviewAllowed && <div title="Đã khóa đáp án"><Lock className="w-3 h-3 text-slate-500" /></div>}
                               </div>
                               <p className="text-xs text-slate-400">
                                 {new Date(exam.timestamp).toLocaleString('vi-VN')}
                               </p>
                             </div>
                             <div className="text-lg font-black text-teal-400">
-                              {exam.score} <span className="text-xs text-slate-500 font-normal">/ 10</span>
+                              {exam.score} <span className="text-xs text-slate-500 font-normal">/ {maxPoints}</span>
                             </div>
                           </div>
-                        ))
+                          );
+                        })
                       ) : (
                         <p className="p-8 text-center text-slate-500">Chưa có lịch sử làm bài.</p>
                       )}
@@ -245,58 +264,95 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
             <AnimatePresence>
               {selectedExam && (
                 <motion.div
+                  key="detail-modal"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                   className="absolute inset-0 bg-slate-900 z-10 p-8 overflow-y-auto"
                 >
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-white">Chi tiết bài thi</h3>
+                    <h3 className="text-xl font-bold text-white">Chi tiết {selectedExam.examDetails?.title || 'bài thi'}</h3>
                     <button 
                       onClick={() => setSelectedExam(null)}
-                      className="text-slate-400 hover:text-white"
+                      className="text-slate-400 hover:text-white flex items-center gap-2"
                     >
-                      Quay lại
+                      <X className="w-5 h-5"/> Đóng
                     </button>
                   </div>
-                  {!showAnswers && (
+                  {selectedExam.examDetails?.allowReview === false && (
                     <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
                       <Lock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                       <p className="text-sm text-amber-200">
-                        Tính năng xem lại đáp án và lời giải đang bị khóa bởi Giáo viên. Bạn chỉ có thể xem lại các câu hỏi và đáp án đã chọn.
+                        Tính năng xem lại đáp án và lời giải đang bị khóa bởi Giáo viên. Bạn chỉ có thể theo dõi lại bài làm của mình.
                       </p>
                     </div>
                   )}
                   <div className="space-y-4">
                     {selectedExam.answers.map((ans: any, idx: number) => {
-                      const question = questionBank.find(q => q.id === ans.questionId);
-                      if (!question) return null;
+                      const questions = selectedExam.examDetails?.questions || [];
+                      const isReviewAllowed = selectedExam.examDetails?.allowReview !== false;
+                      const question = questions.find((q: any) => String(q.id) === String(ans.questionId)) || questionBank.find(q => String(q.id) === String(ans.questionId));
                       
-                      const studentAnswer = question.options[ans.selectedOriginalIndex];
-                      const correctAnswer = question.options[question.correctAnswer];
+                      if (!question) {
+                        return (
+                          <div key={idx} className="p-4 rounded-xl border bg-slate-800/50 border-slate-700">
+                             <p className="text-sm font-bold text-white mb-2">Câu {idx + 1}</p>
+                             <p className="text-sm text-slate-400">Nội dung câu hỏi này không còn tồn tại hoặc đã bị xóa.</p>
+                          </div>
+                        );
+                      }
+                      
+                      let studentAnswerStr = "-";
+                      let correctAnswerStr = "-";
+
+                      if (question.type === 'multiple_choice' || question.type === undefined) {
+                        studentAnswerStr = ans.selectedOriginalIndex !== undefined && question.options && question.options[ans.selectedOriginalIndex] ? question.options[ans.selectedOriginalIndex] : "Không trả lời";
+                        correctAnswerStr = question.options && question.correctAnswer !== undefined ? question.options[question.correctAnswer] : "-";
+                      } else if (question.type === 'true_false') {
+                        if (ans.subAnswers) {
+                          studentAnswerStr = ans.subAnswers.map((s: string, i: number) => `Ý ${['a', 'b', 'c', 'd'][i] || i+1}: ${s === 'True' ? 'Đúng' : s === 'False' ? 'Sai' : 'Trống'}`).join(' | ');
+                        }
+                        if (question.options) {
+                          correctAnswerStr = question.options.map((opt: any, i: number) => `Ý ${['a', 'b', 'c', 'd'][i] || i+1}: ${opt.isCorrect ? 'Đúng' : 'Sai'}`).join(' | ');
+                        }
+                      } else if (question.type === 'short_answer') {
+                        studentAnswerStr = ans.shortAnswer || "Không trả lời";
+                        correctAnswerStr = typeof question.answer === 'string' ? question.answer : (question.answer?.join(', ') || "-");
+                      }
                       
                       return (
-                      <div key={idx} className={cn("p-4 rounded-xl border", showAnswers ? (ans.isCorrect ? "bg-emerald-950/20 border-emerald-900/50" : "bg-rose-950/20 border-rose-900/50") : "bg-slate-800/50 border-slate-700")}>
-                        <p className="text-sm font-bold text-white mb-2">Câu {idx + 1}</p>
-                        <div className="text-sm text-slate-200 mb-2">
+                      <div key={idx} className={cn("p-4 rounded-xl border", isReviewAllowed ? (ans.isCorrect ? "bg-emerald-950/20 border-emerald-900/50" : "bg-rose-950/20 border-rose-900/50") : "bg-slate-800/50 border-slate-700")}>
+                        <p className="text-sm font-bold text-white mb-2">Câu {idx + 1} {isReviewAllowed && (ans.isCorrect ? '(+Đúng)' : '(Sai)')}</p>
+                        <div className="text-sm text-slate-200 mb-4 bg-slate-900/50 p-3 rounded-lg flex flex-col gap-2">
                           <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                            {fixLatex(question.text)}
+                            {fixLatex(question.text || '')}
                           </ReactMarkdown>
+                          {question.type === 'true_false' && question.options && (
+                            <ul className="list-disc pl-5 mt-2 text-slate-300">
+                              {question.options.map((opt: any, i: number) => (
+                                <li key={i}>
+                                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                    {fixLatex(opt.text || '')}
+                                  </ReactMarkdown>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
-                        <div className="space-y-1">
-                          <div className={cn("text-sm", showAnswers ? (ans.isCorrect ? "text-emerald-400" : "text-rose-400") : "text-slate-300")}>
-                            Đáp án của bạn: <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(studentAnswer)}</ReactMarkdown>
+                        <div className="space-y-2">
+                          <div className={cn("text-sm", isReviewAllowed ? (ans.isCorrect ? "text-emerald-400" : "text-rose-400") : "text-slate-300")}>
+                            <span className="font-bold opacity-80">Đáp án của bạn:</span> <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(studentAnswerStr)}</ReactMarkdown>
                           </div>
-                          {showAnswers && !ans.isCorrect && (
-                            <div className="text-sm text-emerald-400 font-bold">
-                              Đáp án đúng: <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(correctAnswer)}</ReactMarkdown>
+                          {isReviewAllowed && !ans.isCorrect && (
+                            <div className="text-sm text-emerald-400">
+                              <span className="font-bold opacity-80">Đáp án đúng:</span> <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(correctAnswerStr)}</ReactMarkdown>
                             </div>
                           )}
                         </div>
-                        {showAnswers && question.insight && (
-                          <div className="mt-3 pt-3 border-t border-slate-700/50">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Giải thích:</p>
-                            <div className="text-sm text-slate-300 italic whitespace-pre-wrap">
+                        {isReviewAllowed && question.insight && (
+                          <div className="mt-4 pt-4 border-t border-slate-700/50">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1"><BookOpen className="w-3 h-3"/> Hướng dẫn giải chi tiết:</p>
+                            <div className="text-sm text-slate-300 whitespace-pre-wrap bg-slate-900/30 p-3 rounded-lg border border-slate-800/50">
                               <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                                 {fixLatex(question.insight)}
                               </ReactMarkdown>

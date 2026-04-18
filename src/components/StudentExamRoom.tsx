@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, Send, HelpCircle, Image as ImageIcon } from 'lucide-react';
@@ -12,13 +12,18 @@ import 'katex/dist/katex.min.css';
 import { ParticleBackground } from './ParticleBackground';
 import { fixLatex } from '../utils/latexHelper';
 import { useAntiCheat } from '../hooks/useAntiCheat';
+import { Leaderboard } from './Leaderboard';
 
 interface Question {
   id: string;
   type: 'multiple_choice' | 'true_false' | 'short_answer';
-  content: string;
+  content?: string;
+  text?: string;
   options?: string[];
+  answer?: string;
+  correctAnswer?: string;
   imageUrl?: string;
+  points?: number;
   subQuestions?: { id: string; content: string; answer: string }[];
 }
 
@@ -44,6 +49,9 @@ export const StudentExamRoom: React.FC = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [showReview, setShowReview] = useState(false);
+  const [score, setScore] = useState(0);
+  const [totalPoints, setTotalPoints] = useState(0);
 
   const { requestFullscreen, isAway, awayTimeLeft } = useAntiCheat({
     isEnabled: !loading && !!exam,
@@ -131,25 +139,58 @@ export const StudentExamRoom: React.FC = () => {
     }));
   };
 
-  const handleSubmit = async (force: boolean = false) => {
-    if (force || window.confirm('Bạn có chắc chắn muốn nộp bài?')) {
-      // Logic nộp bài ở đây (ví dụ: tính điểm, lưu vào collection 'results', chuyển trang)
+  const handleSubmit = async (force: boolean | React.MouseEvent = false) => {
+    if (force === true || window.confirm('Bạn có chắc chắn muốn nộp bài?')) {
+      if (!exam) return;
       
-      // Update status to 'waiting'
+      let earnedPoints = 0;
+      let possiblePoints = 0;
+
+      // Calculate score if answers exist (simplified calculation for multiple choice)
+      exam.questions.forEach(q => {
+        const maxPoints = q.points || 1;
+        possiblePoints += maxPoints;
+
+        const studentAns = answers[q.id];
+        if (studentAns) {
+          if (q.type === 'multiple_choice') {
+            const correctText = q.correctAnswer || q.answer;
+            if (correctText && studentAns === correctText) {
+              earnedPoints += maxPoints;
+            }
+          }
+        }
+      });
+
+      setScore(earnedPoints);
+      setTotalPoints(possiblePoints);
+      
       const savedSession = localStorage.getItem('lkt_student_session');
       if (savedSession) {
         try {
-          const { name, studentClass } = JSON.parse(savedSession);
+          const { name, studentClass, grade } = JSON.parse(savedSession);
           const sessionId = `${name}_${studentClass}`.replace(/\s+/g, '_');
           await updateDoc(doc(db, 'student_sessions', sessionId), { status: 'waiting' });
+          
+          // Save to results collection for Leaderboard
+          await addDoc(collection(db, 'results'), {
+            studentName: name,
+            studentClass: studentClass,
+            grade: grade || '12',
+            score: earnedPoints,
+            totalPoints: possiblePoints,
+            timeSpent: (exam.timeLimit * 60) - timeLeft,
+            examId: exam.id,
+            examTitle: exam.title,
+            submittedAt: serverTimestamp(),
+            answers: answers
+          });
         } catch (error) {
-          console.error("Error updating student status:", error);
+          console.error("Error updating student status or saving results:", error);
         }
       }
 
-      console.log("Bài làm của học sinh:", answers);
-      alert('Nộp bài thành công! (Chức năng chấm điểm có thể được thêm vào sau)');
-      navigate('/library'); // Quay lại thư viện sau khi nộp
+      setShowReview(true);
     }
   };
 
@@ -204,6 +245,49 @@ export const StudentExamRoom: React.FC = () => {
         <p className="text-slate-400 mt-4">
           Hệ thống sẽ tự động nộp bài khi hết thời gian.
         </p>
+      </div>
+    );
+  }
+
+  if (showReview) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] text-slate-300 font-sans">
+        <header className="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 md:px-8 py-4 flex items-center justify-between shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => navigate('/library')}
+              className="p-2 hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-white"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-xl md:text-2xl font-black text-white tracking-tight line-clamp-1">
+              Kết quả: {exam.title}
+            </h1>
+          </div>
+        </header>
+
+        <main className="max-w-4xl mx-auto py-12 px-4">
+          <div className="mb-12 text-center">
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Điểm số của bạn</h2>
+            <div className="text-6xl md:text-8xl font-black text-teal-400 drop-shadow-[0_0_30px_rgba(45,212,191,0.5)]">
+              {score}<span className="text-3xl md:text-5xl text-slate-500">/{totalPoints}</span>
+            </div>
+            <p className="mt-4 text-slate-400 text-lg">
+              Thời gian làm bài: <span className="font-bold text-teal-400">{formatTime((exam.timeLimit * 60) - timeLeft)}</span>
+            </p>
+          </div>
+
+          <Leaderboard examId={exam.id} />
+
+          <div className="flex justify-center mt-12">
+            <button 
+              onClick={() => navigate('/library')}
+              className="bg-slate-800 hover:bg-slate-700 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-colors border border-slate-700"
+            >
+              Quay lại thư viện
+            </button>
+          </div>
+        </main>
       </div>
     );
   }

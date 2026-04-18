@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { BookOpen, Clock, Shield, Plus, X, Award, Target, TrendingUp, TrendingDown, Activity, PlayCircle, Calendar, Search, Pencil, Trash2, AlertTriangle, CheckCircle2, FileText, ChevronDown, ChevronUp, Lock, Unlock, Zap, Sun, RefreshCw } from 'lucide-react';
+import { BookOpen, Clock, Shield, Plus, X, Award, Target, TrendingUp, TrendingDown, Activity, PlayCircle, Calendar, Search, Pencil, Trash2, AlertTriangle, CheckCircle2, FileText, ChevronDown, ChevronUp, Lock, Unlock, Zap, Sun, RefreshCw, Trophy } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -12,6 +12,9 @@ import { AdvancedWordProcessor } from './AdvancedWordProcessor';
 import { removeUndefined } from '../utils/jsonHelper';
 import { fixLatex } from '../utils/latexHelper';
 import { Top10Leaderboard } from './Top10Leaderboard';
+import { AdminLeaderboard } from './AdminLeaderboard';
+import { Leaderboard } from './Leaderboard';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
 
@@ -113,6 +116,8 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showQuestionsPreview, setShowQuestionsPreview] = useState(false);
   const [formMode, setFormMode] = useState<'manual' | 'import'>('manual');
+  const [selectedLeaderboardExam, setSelectedLeaderboardExam] = useState<string | null>(null);
+  const [selectedExamForRoom, setSelectedExamForRoom] = useState<Exam | null>(null);
 
   // Fetch Exams
   useEffect(() => {
@@ -891,60 +896,23 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
 
                 {!isAdmin ? (
                   <div className="mt-4 sm:mt-0 flex-shrink-0 flex gap-2">
-                    {(() => {
-                      const progressKey = `exam_progress_${exam.id}_${studentInfo?.name}_${studentInfo?.studentClass}`;
-                      const localSavedStr = localStorage.getItem(progressKey);
-                      const localSaved = localSavedStr ? JSON.parse(localSavedStr) : null;
-                      
-                      // Use Firestore progress if available, otherwise fallback to local progress
-                      const saved = progresses[exam.id] || localSaved;
-                      const hasProgress = !!saved;
-                      
-                      if (hasProgress) {
-                        const isForceSubmit = saved.forceSubmit && (exam.type === 'Bài thi' || exam.type === 'Bài kiểm tra');
-                        
-                        return (
-                          <>
-                            <button 
-                              onClick={() => handleTakeExam(exam, true)}
-                              disabled={exam.isOpen === false}
-                              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-3 rounded-xl font-bold transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-amber-500 disabled:group-hover:shadow-none"
-                            >
-                              <PlayCircle className="w-5 h-5" />
-                              LÀM TIẾP
-                            </button>
-                            {!isForceSubmit && (
-                              <button 
-                                onClick={() => {
-                                  if (window.confirm("Bạn có chắc chắn muốn làm lại từ đầu? Mọi tiến trình đã lưu sẽ bị xóa.")) {
-                                    handleTakeExam(exam, false);
-                                  }
-                                }}
-                                disabled={exam.isOpen === false}
-                                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-800 hover:bg-teal-500 text-white px-4 py-3 rounded-xl font-bold transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(20,184,166,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-800 disabled:group-hover:shadow-none"
-                              >
-                                <RefreshCw className="w-5 h-5" />
-                                LÀM LẠI
-                              </button>
-                            )}
-                          </>
-                        );
-                      }
-                      
-                      return (
-                        <button 
-                          onClick={() => handleTakeExam(exam)}
-                          disabled={exam.isOpen === false}
-                          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-800 hover:bg-teal-500 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(20,184,166,0.4)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-800 disabled:group-hover:shadow-none"
-                        >
-                          <PlayCircle className="w-5 h-5" />
-                          LÀM BÀI
-                        </button>
-                      );
-                    })()}
+                    <button 
+                      onClick={() => setSelectedExamForRoom(exam)}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-800 hover:bg-teal-500 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(20,184,166,0.4)] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 hover:border-teal-400"
+                    >
+                      <PlayCircle className="w-5 h-5" />
+                      VÀO PHÒNG THI
+                    </button>
                   </div>
                 ) : (
                   <div className="mt-4 sm:mt-0 flex-shrink-0 flex gap-2">
+                    <button 
+                      onClick={() => setSelectedLeaderboardExam(exam.id)}
+                      className="flex items-center justify-center gap-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/30 hover:bg-yellow-500 hover:text-white px-4 py-3 rounded-xl font-bold transition-all duration-300 hover:shadow-[0_0_15px_rgba(234,179,8,0.4)]"
+                      title="Xem Bảng xếp hạng"
+                    >
+                      <Trophy className="w-5 h-5" />
+                    </button>
                     <button 
                       onClick={() => handleToggleOpen(exam.id, exam.isOpen)}
                       title={exam.isOpen === false ? "Mở bài thi" : "Đóng bài thi"}
@@ -1027,6 +995,184 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
             </div>
           )}
         </AnimatePresence>
+
+        {/* Leaderboard Modal for Admin */}
+        <AnimatePresence>
+          {selectedLeaderboardExam && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="bg-[#0f172a] border border-slate-800 rounded-3xl w-full max-w-4xl shadow-2xl relative my-8"
+              >
+                <button 
+                  onClick={() => setSelectedLeaderboardExam(null)}
+                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors z-10"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+                <div className="p-6 md:p-8 pt-10">
+                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                    <Trophy className="w-6 h-6 text-yellow-500" />
+                    Quản lý Bảng xếp hạng
+                  </h2>
+                  <div className="max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
+                    <AdminLeaderboard examId={selectedLeaderboardExam} />
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Student Exam Room Drawer */}
+        <AnimatePresence>
+          {selectedExamForRoom && (
+            <>
+              {/* Backdrop */}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setSelectedExamForRoom(null)}
+                className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+              />
+              
+              {/* Side Drawer */}
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
+                className="fixed inset-y-0 right-0 z-[110] w-full max-w-md bg-slate-900 shadow-2xl border-l border-slate-800 flex flex-col"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-900 z-10">
+                  <h2 className="text-xl font-bold text-white line-clamp-1 pr-4">
+                    {selectedExamForRoom.title}
+                  </h2>
+                  <button 
+                    onClick={() => setSelectedExamForRoom(null)}
+                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors flex-shrink-0"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                
+                {/* Body (Leaderboard) */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-[#0f172a]">
+                  <h3 className="text-lg font-bold text-teal-400 mb-6 flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-yellow-500" />
+                    Bảng Xếp Hạng Top 10
+                  </h3>
+                  <Leaderboard examId={selectedExamForRoom.id} />
+
+                  {(() => {
+                    const studentAttempts = results
+                      .filter(r => r.examId === selectedExamForRoom.id)
+                      .sort((a, b) => {
+                        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+                        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+                        return timeA - timeB;
+                      })
+                      .map((r, idx) => ({
+                        name: `Lần ${idx + 1}`,
+                        score: r.score,
+                        totalPoints: r.totalPoints || 10
+                      }));
+
+                    if (studentAttempts.length === 0) return null;
+
+                    return (
+                      <div className="mt-8">
+                        <h3 className="text-lg font-bold text-teal-400 mb-4 flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-teal-500" />
+                          Biểu Đồ Kết Quả Cá Nhân
+                        </h3>
+                        <div className="h-48 w-full bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={studentAttempts} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                              <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickMargin={8} />
+                              <YAxis stroke="#94a3b8" fontSize={12} domain={[0, 'dataMax']} />
+                              <Tooltip 
+                                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }} 
+                                itemStyle={{ color: '#2dd4bf', fontWeight: 'bold' }}
+                                labelStyle={{ color: '#94a3b8', marginBottom: '4px' }}
+                              />
+                              <Line type="monotone" dataKey="score" stroke="#2dd4bf" strokeWidth={3} dot={{ r: 4, fill: '#1e293b', strokeWidth: 2, stroke: '#2dd4bf' }} activeDot={{ r: 6, fill: '#2dd4bf' }} name="Điểm" />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+                
+                {/* Footer (Actions) */}
+                <div className="p-6 border-t border-slate-800 bg-slate-900 border-opacity-50 flex flex-col gap-3">
+                  {(() => {
+                    const progressKey = `exam_progress_${selectedExamForRoom.id}_${studentInfo?.name}_${studentInfo?.studentClass}`;
+                    const localSavedStr = localStorage.getItem(progressKey);
+                    const localSaved = localSavedStr ? JSON.parse(localSavedStr) : null;
+                    const saved = progresses[selectedExamForRoom.id] || localSaved;
+                    const hasProgress = !!saved;
+
+                    if (hasProgress) {
+                      const isForceSubmit = saved.forceSubmit && (selectedExamForRoom.type === 'Bài thi' || selectedExamForRoom.type === 'Bài kiểm tra');
+                      return (
+                        <>
+                          <button 
+                            onClick={() => {
+                              setSelectedExamForRoom(null);
+                              handleTakeExam(selectedExamForRoom, true);
+                            }}
+                            disabled={selectedExamForRoom.isOpen === false}
+                            className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <PlayCircle className="w-5 h-5" />
+                            LÀM TIẾP
+                          </button>
+                          {!isForceSubmit && (
+                            <button 
+                              onClick={() => {
+                                if (window.confirm("Bạn có chắc chắn muốn làm lại từ đầu? Mọi tiến trình đã lưu sẽ bị xóa.")) {
+                                  setSelectedExamForRoom(null);
+                                  handleTakeExam(selectedExamForRoom, false);
+                                }
+                              }}
+                              disabled={selectedExamForRoom.isOpen === false}
+                              className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-teal-500 text-white px-6 py-4 rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700"
+                            >
+                              <RefreshCw className="w-5 h-5" />
+                              LÀM LẠI
+                            </button>
+                          )}
+                        </>
+                      );
+                    }
+                    
+                    return (
+                      <button 
+                        onClick={() => {
+                          setSelectedExamForRoom(null);
+                          handleTakeExam(selectedExamForRoom);
+                        }}
+                        disabled={selectedExamForRoom.isOpen === false}
+                        className="w-full flex items-center justify-center gap-2 bg-teal-500 hover:bg-teal-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(20,184,166,0.2)]"
+                      >
+                        <PlayCircle className="w-5 h-5" />
+                        LÀM BÀI
+                      </button>
+                    );
+                  })()}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
       </div>
     </div>
   );

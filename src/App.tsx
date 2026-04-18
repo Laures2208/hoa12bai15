@@ -80,8 +80,7 @@ export function formatTimeSpent(timeSpent: any) {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-// --- Components ---
-
+import { Leaderboard } from './components/Leaderboard';
 import { VirtualChemistryLab } from './components/VirtualChemistryLab';
 import { ParticleBackground } from './components/ParticleBackground';
 
@@ -559,147 +558,6 @@ interface PreparedQuestion extends Question {
   shuffledOptions: { text: string; originalIndex: number }[];
 }
 
-const Leaderboard = () => {
-  const [leaders, setLeaders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [leaderboardType, setLeaderboardType] = useState<'most_exams' | 'highest_avg'>('most_exams');
-
-  useEffect(() => {
-    let unsubscribe: () => void;
-    setLoading(true);
-    
-    const fetchLeaderboard = async () => {
-      try {
-        const { collection, onSnapshot } = await import('firebase/firestore');
-        const { db } = await import('./firebase');
-        
-        const resultsRef = collection(db, 'results');
-        
-        unsubscribe = onSnapshot(resultsRef, (snapshot) => {
-          const statsMap = new Map<string, any>();
-          
-          snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            const key = `${data.studentName}_${data.studentClass}`;
-            
-            if (!statsMap.has(key)) {
-              statsMap.set(key, {
-                student_name: data.studentName,
-                student_class: data.studentClass,
-                total_exams: 0,
-                total_score: 0,
-              });
-            }
-            
-            const userStats = statsMap.get(key);
-            userStats.total_exams += 1;
-            const normalizedScore = data.totalPoints ? (data.score / data.totalPoints) * 10 : (data.score || 0);
-            userStats.total_score += normalizedScore;
-          });
-          
-          const statsArray = Array.from(statsMap.values()).map(stat => ({
-            ...stat,
-            avg_score: stat.total_exams > 0 ? Number((stat.total_score / stat.total_exams).toFixed(2)) : 0
-          }));
-          
-          if (leaderboardType === 'most_exams') {
-            statsArray.sort((a, b) => b.total_exams - a.total_exams || b.avg_score - a.avg_score);
-          } else {
-            statsArray.sort((a, b) => b.avg_score - a.avg_score || b.total_exams - a.total_exams);
-          }
-          
-          setLeaders(statsArray.slice(0, 10));
-          setLoading(false);
-        });
-      } catch (err) {
-        console.error('Error fetching leaderboard:', err);
-        setLoading(false);
-      }
-    };
-    
-    fetchLeaderboard();
-    
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [leaderboardType]);
-
-  return (
-    <div className="mt-12 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-3xl p-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-          <Medal className="text-yellow-500" />
-          Bảng Xếp Hạng Top 10
-        </h3>
-        <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl">
-          <button 
-            onClick={() => setLeaderboardType('most_exams')}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-              leaderboardType === 'most_exams' ? "bg-teal-500 text-white shadow-md" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-            )}
-          >
-            Làm bài nhiều nhất
-          </button>
-          <button 
-            onClick={() => setLeaderboardType('highest_avg')}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-              leaderboardType === 'highest_avg' ? "bg-teal-500 text-white shadow-md" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-            )}
-          >
-            Điểm trung bình cao nhất
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="text-center py-10 text-slate-500 dark:text-slate-400">Đang tải bảng xếp hạng...</div>
-      ) : (
-        <div className="space-y-3">
-          {leaders.map((leader, idx) => (
-            <div 
-              key={`${leader.student_name}_${leader.student_class}_${idx}`} 
-              className={cn(
-                "flex items-center justify-between p-4 rounded-xl border",
-                idx === 0 ? "bg-yellow-500/10 border-yellow-500/30" : 
-                idx === 1 ? "bg-slate-300/10 border-slate-300/30" :
-                idx === 2 ? "bg-orange-500/10 border-orange-500/30" :
-                "bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/50"
-              )}
-            >
-              <div className="flex items-center gap-4">
-                <span className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center font-black text-sm",
-                  idx === 0 ? "bg-yellow-500 text-slate-900" :
-                  idx === 1 ? "bg-slate-300 text-slate-900" :
-                  idx === 2 ? "bg-orange-500 text-slate-900" :
-                  "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
-                )}>
-                  {idx + 1}
-                </span>
-                <div>
-                  <div className="font-bold text-slate-900 dark:text-white">{leader.student_name}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">Lớp: {leader.student_class}</div>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-teal-600 dark:text-teal-400 font-black text-lg">{leader.avg_score}/10</div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-600 uppercase tracking-widest mt-1">
-                  {leader.total_exams} bài
-                </div>
-              </div>
-            </div>
-          ))}
-          {leaders.length === 0 && (
-            <div className="text-center py-6 text-slate-500 dark:text-slate-600 italic">Chưa có dữ liệu xếp hạng cho gói này.</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
 const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' | 'exam-room' | 'gateway') => void, onOpenProfile: () => void }) => {
   const [examStarted, setExamStarted] = useState(false);
   const [currentExam, setCurrentExam] = useState<Exam | null>(null);
@@ -1018,8 +876,8 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
       // Also save periodically every 5 seconds to keep timeLeft relatively accurate
       const interval = setInterval(saveProgress, 5000);
       
-      // Save to Firestore every 30 seconds
-      const firestoreInterval = setInterval(saveToFirestore, 30000);
+      // Save to Firestore every 5 seconds
+      const firestoreInterval = setInterval(saveToFirestore, 5000);
       
       return () => {
         clearInterval(interval);
@@ -1384,6 +1242,8 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Xem lại bài làm</h2>
           <div className="text-2xl font-black text-teal-600 dark:text-teal-400">{score}/{totalPoints}</div>
         </div>
+
+        {currentExam && <Leaderboard examId={currentExam.id} />}
         
         {!showAnswers && (
           <div className="mb-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
@@ -1906,7 +1766,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
               </button>
             </div>
             
-            <Leaderboard />
+            {currentExam && <Leaderboard examId={currentExam.id} />}
           </div>
         )}
       </div>
