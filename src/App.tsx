@@ -2019,7 +2019,7 @@ const AdminPortal = () => {
         )}>
           <Table className="text-teal-500" />
           Quản trị Hệ thống (Giáo viên)
-          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 ml-2">v1.5.5</span>
+          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 ml-2">v2.2.8</span>
         </h2>
         <div className="flex items-center gap-4 flex-wrap">
           <button 
@@ -3381,7 +3381,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
             © 2024 Metallurgy Learning Platform. Thiết kế cho giáo dục hiện đại.
           </p>
           <p className="text-slate-500 dark:text-slate-400 text-xs mt-2 font-mono">
-            Phiên bản 1.5.5
+            Phiên bản 2.2.8
           </p>
         </div>
       </footer>
