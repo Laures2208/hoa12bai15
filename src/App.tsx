@@ -582,7 +582,7 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
   const [timeLeft, setTimeLeft] = useState(0);
   const [fullScreenViolations, setFullScreenViolations] = useState(0);
   const [showFullScreenWarning, setShowFullScreenWarning] = useState(false);
-  const [showAnswers, setShowAnswers] = useState(false);
+  const [showAnswers, setShowAnswers] = useState(true);
   const [allowReview, setAllowReview] = useState(true);
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
@@ -1245,110 +1245,73 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
 
         {currentExam && <Leaderboard examId={currentExam.id} />}
         
-        {!showAnswers && (
-          <div className="mb-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-200">
-              Tính năng xem lại đáp án và lời giải đang bị khóa bởi Giáo viên. Bạn chỉ có thể xem lại các câu hỏi và đáp án đã chọn.
+        {(!showAnswers || currentExam?.allowReview === false) ? (
+          <div className="flex flex-col items-center justify-center p-8 bg-amber-500/10 border border-amber-500/20 rounded-2xl gap-4">
+            <Lock className="w-12 h-12 text-amber-500" />
+            <h4 className="text-xl font-bold text-amber-400">Đã khóa xem lại bài</h4>
+            <p className="text-sm text-amber-200 text-center max-w-md">
+              Giáo viên đã khóa tính năng xem lại bài thi này. Bạn không thể xem lại đề thi, bài làm cũng như đáp án chi tiết.
             </p>
           </div>
-        )}
-
-        <div className="space-y-8">
-          {preparedQuestions.map((q, idx) => {
-            const studentAns = answers.find(a => a.questionId === q.id);
-            return (
-              <div key={q.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-xl">
-                <div className="flex items-start gap-4 mb-6">
-                  <span className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 font-bold shrink-0">
-                    {idx + 1}
-                  </span>
-                  <div className="text-xl font-bold text-slate-900 dark:text-white leading-relaxed">
-                    {q.imageUrl && (
-                      <div className="mb-6 flex justify-center">
-                        <img 
-                          src={q.imageUrl} 
-                          alt="Question" 
-                          className="max-w-full h-auto rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700/50"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                    )}
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkMath]} 
-                      rehypePlugins={[rehypeKatex]}
-                      components={{
-                        img: ({ node, ...props }) => {
-                          if (!props.src) return null;
-                          return (
-                            <img 
-                              {...props} 
-                              className="max-w-full h-auto rounded-2xl my-6 shadow-xl border border-slate-200 dark:border-slate-700/50 mx-auto block" 
-                              referrerPolicy="no-referrer"
-                            />
-                          );
-                        }
-                      }}
-                    >
-                      {fixLatex((q.content || q.text || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, ''))}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-
-                {q.type === 'multiple_choice' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    {q.shuffledOptions.map((opt: any, oIdx: number) => {
-                      const isCorrect = opt.originalIndex === q.correctAnswer;
-                      const isSelected = studentAns?.selectedOriginalIndex === opt.originalIndex;
-                      
-                      return (
-                        <div 
-                          key={oIdx}
-                          className={cn(
-                            "p-4 rounded-xl border-2 flex items-center justify-between",
-                            showAnswers && isCorrect ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-700 dark:text-emerald-400 font-bold" :
-                            isSelected && (!showAnswers || !isCorrect) ? "bg-red-500/10 border-red-500/50 text-red-700 dark:text-red-400 font-bold" :
-                            "bg-slate-50 dark:bg-slate-800 border-transparent text-slate-600 dark:text-slate-400"
-                          )}
-                        >
-                          <div className="text-base">
-                            <ReactMarkdown 
-                              remarkPlugins={[remarkMath]} 
-                              rehypePlugins={[rehypeKatex]}
-                              components={{
-                                img: ({ node, ...props }) => {
-                                  if (!props.src) return null;
-                                  return (
-                                    <img 
-                                      {...props} 
-                                      className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
-                                      referrerPolicy="no-referrer"
-                                    />
-                                  );
-                                }
-                              }}
-                            >
-                              {fixLatex(opt.text)}
-                            </ReactMarkdown>
-                          </div>
-                          {showAnswers && isCorrect && <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />}
-                          {isSelected && (!showAnswers || !isCorrect) && <XCircle className="w-5 h-5 text-red-600 dark:text-red-500" />}
+        ) : (
+          <div className="space-y-8">
+            {preparedQuestions.map((q, idx) => {
+              const studentAns = answers.find(a => a.questionId === q.id);
+              return (
+                <div key={q.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-xl">
+                  <div className="flex items-start gap-4 mb-6">
+                    <span className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 font-bold shrink-0">
+                      {idx + 1}
+                    </span>
+                    <div className="text-xl font-bold text-slate-900 dark:text-white leading-relaxed">
+                      {q.imageUrl && (
+                        <div className="mb-6 flex justify-center">
+                          <img 
+                            src={q.imageUrl} 
+                            alt="Question" 
+                            className="max-w-full h-auto rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700/50"
+                            referrerPolicy="no-referrer"
+                          />
                         </div>
-                      );
-                    })}
+                      )}
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkMath]} 
+                        rehypePlugins={[rehypeKatex]}
+                        components={{
+                          img: ({ node, ...props }) => {
+                            if (!props.src) return null;
+                            return (
+                              <img 
+                                {...props} 
+                                className="max-w-full h-auto rounded-2xl my-6 shadow-xl border border-slate-200 dark:border-slate-700/50 mx-auto block" 
+                                referrerPolicy="no-referrer"
+                              />
+                            );
+                          }
+                        }}
+                      >
+                        {fixLatex((q.content || q.text || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, ''))}
+                      </ReactMarkdown>
+                    </div>
                   </div>
-                )}
 
-                {q.type === 'true_false' && q.subQuestions && (
-                  <div className="space-y-4 mb-6">
-                    {q.subQuestions.map((sq: any, i: number) => {
-                      const subAns = (studentAns as any)?.subAnswers?.[i];
-                      const isCorrect = subAns === sq.answer;
-                      return (
-                        <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="text-base font-medium text-slate-800 dark:text-slate-100 flex-1 flex items-start">
-                            <span className="text-teal-500 font-bold mr-2 mt-1">{String.fromCharCode(97 + i)})</span>
-                            <div className="flex-1">
+                  {q.type === 'multiple_choice' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      {q.shuffledOptions.map((opt: any, oIdx: number) => {
+                        const isCorrect = opt.originalIndex === q.correctAnswer;
+                        const isSelected = studentAns?.selectedOriginalIndex === opt.originalIndex;
+                        
+                        return (
+                          <div 
+                            key={oIdx}
+                            className={cn(
+                              "p-4 rounded-xl border-2 flex items-center justify-between",
+                              showAnswers && isCorrect ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-700 dark:text-emerald-400 font-bold" :
+                              isSelected && (!showAnswers || !isCorrect) ? "bg-red-500/10 border-red-500/50 text-red-700 dark:text-red-400 font-bold" :
+                              "bg-slate-50 dark:bg-slate-800 border-transparent text-slate-600 dark:text-slate-400"
+                            )}
+                          >
+                            <div className="text-base">
                               <ReactMarkdown 
                                 remarkPlugins={[remarkMath]} 
                                 rehypePlugins={[rehypeKatex]}
@@ -1365,63 +1328,101 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
                                   }
                                 }}
                               >
-                                {fixLatex(sq.content || sq.text || '')}
+                                {fixLatex(opt.text)}
                               </ReactMarkdown>
                             </div>
+                            {showAnswers && isCorrect && <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />}
+                            {isSelected && (!showAnswers || !isCorrect) && <XCircle className="w-5 h-5 text-red-600 dark:text-red-500" />}
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="flex bg-slate-200 dark:bg-slate-900 p-1 rounded-xl">
-                              <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Đúng' ? "bg-emerald-500 text-white" : "text-slate-300")}>Đúng</div>
-                              <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Sai' ? "bg-rose-500 text-white" : "text-slate-300")}>Sai</div>
-                            </div>
-                            {showAnswers && (
-                              <div className={cn("text-xs font-bold px-3 py-1 rounded-full", isCorrect ? "bg-emerald-500/20 text-emerald-500" : "bg-rose-500/20 text-rose-500")}>
-                                {sq.answer} {isCorrect ? "✓" : "✗"}
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {q.type === 'true_false' && q.subQuestions && (
+                    <div className="space-y-4 mb-6">
+                      {q.subQuestions.map((sq: any, i: number) => {
+                        const subAns = (studentAns as any)?.subAnswers?.[i];
+                        const isCorrect = subAns === sq.answer;
+                        return (
+                          <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="text-base font-medium text-slate-800 dark:text-slate-100 flex-1 flex items-start">
+                              <span className="text-teal-500 font-bold mr-2 mt-1">{String.fromCharCode(97 + i)})</span>
+                              <div className="flex-1">
+                                <ReactMarkdown 
+                                  remarkPlugins={[remarkMath]} 
+                                  rehypePlugins={[rehypeKatex]}
+                                  components={{
+                                    img: ({ node, ...props }) => {
+                                      if (!props.src) return null;
+                                      return (
+                                        <img 
+                                          {...props} 
+                                          className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
+                                          referrerPolicy="no-referrer"
+                                        />
+                                      );
+                                    }
+                                  }}
+                                >
+                                  {fixLatex(sq.content || sq.text || '')}
+                                </ReactMarkdown>
                               </div>
-                            )}
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="flex bg-slate-200 dark:bg-slate-900 p-1 rounded-xl">
+                                <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Đúng' ? "bg-emerald-500 text-white" : "text-slate-300")}>Đúng</div>
+                                <div className={cn("px-5 py-2 rounded-xl text-sm font-bold", subAns === 'Sai' ? "bg-rose-500 text-white" : "text-slate-300")}>Sai</div>
+                              </div>
+                              {showAnswers && (
+                                <div className={cn("text-xs font-bold px-3 py-1 rounded-full", isCorrect ? "bg-emerald-500/20 text-emerald-500" : "bg-rose-500/20 text-rose-500")}>
+                                  {sq.answer} {isCorrect ? "✓" : "✗"}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {q.type === 'short_answer' && (
+                    <div className="mb-6 space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="text-sm font-bold text-slate-500">Câu trả lời của bạn:</div>
+                        <div className="px-6 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl font-mono text-xl border-2 border-slate-200 dark:border-slate-700">
+                          {(studentAns as any)?.shortAnswer || '---'}
+                        </div>
+                      </div>
+                      {showAnswers && (
+                        <div className="flex items-center gap-4">
+                          <div className="text-sm font-bold text-teal-500">Đáp án đúng:</div>
+                          <div className="px-6 py-2 bg-teal-500/10 rounded-xl font-mono text-xl border-2 border-teal-500/50 text-teal-600 dark:text-teal-400">
+                            {q.answer}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
 
-                {q.type === 'short_answer' && (
-                  <div className="mb-6 space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="text-sm font-bold text-slate-500">Câu trả lời của bạn:</div>
-                      <div className="px-6 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl font-mono text-xl border-2 border-slate-200 dark:border-slate-700">
-                        {(studentAns as any)?.shortAnswer || '---'}
+                  {showAnswers && (
+                    <div className="bg-teal-500/5 border border-teal-500/20 rounded-2xl p-6">
+                      <div className="flex items-center gap-2 text-teal-600 dark:text-teal-400 font-bold mb-2">
+                        <AlertCircle className="w-5 h-5" />
+                        Giải thích:
+                      </div>
+                      <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                          {fixLatex(q.explanation || q.insight || '')}
+                        </ReactMarkdown>
                       </div>
                     </div>
-                    {showAnswers && (
-                      <div className="flex items-center gap-4">
-                        <div className="text-sm font-bold text-teal-500">Đáp án đúng:</div>
-                        <div className="px-6 py-2 bg-teal-500/10 rounded-xl font-mono text-xl border-2 border-teal-500/50 text-teal-600 dark:text-teal-400">
-                          {q.answer}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {showAnswers && (
-                  <div className="bg-teal-500/5 border border-teal-500/20 rounded-2xl p-6">
-                    <div className="flex items-center gap-2 text-teal-600 dark:text-teal-400 font-bold mb-2">
-                      <AlertCircle className="w-5 h-5" />
-                      Giải thích:
-                    </div>
-                    <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                        {fixLatex(q.explanation || q.insight || '')}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div className="mt-12 text-center">
           <button 
@@ -3389,13 +3390,17 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
   );
 }
 
+import { BatterySaverProvider } from './context/BatterySaverContext';
+
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<MainApp />} />
-      <Route path="/admin" element={<MainApp initialView="admin" />} />
-      <Route path="/library" element={<StudentLibrary />} />
-      <Route path="/quiz/:id" element={<StudentExamRoom />} />
-    </Routes>
+    <BatterySaverProvider>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/admin" element={<MainApp initialView="admin" />} />
+        <Route path="/library" element={<StudentLibrary />} />
+        <Route path="/quiz/:id" element={<StudentExamRoom />} />
+      </Routes>
+    </BatterySaverProvider>
   );
 }

@@ -210,6 +210,16 @@ body {
   100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.8; }
 }
 
+/* Battery Saver Mode */
+.battery-saver * {
+  transition: none !important;
+  animation: none !important;
+}
+
+body.battery-saver {
+  filter: contrast(0.9) brightness(0.95);
+}
+
 /* Chemical Equation Animation */
 .ion-glow {
   animation: ion-pulse 2s infinite alternate ease-in-out;

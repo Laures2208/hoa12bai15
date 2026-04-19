@@ -13,6 +13,7 @@ import { ParticleBackground } from './ParticleBackground';
 import { fixLatex } from '../utils/latexHelper';
 import { useAntiCheat } from '../hooks/useAntiCheat';
 import { Leaderboard } from './Leaderboard';
+import { useBatterySaver } from '../context/BatterySaverContext';
 
 interface Question {
   id: string;
@@ -41,6 +42,7 @@ interface Exam {
 export const StudentExamRoom: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isBatterySaver } = useBatterySaver();
   
   const [exam, setExam] = useState<Exam | null>(null);
   const [loading, setLoading] = useState(true);
@@ -301,6 +303,9 @@ export const StudentExamRoom: React.FC = () => {
   // 2. Giao diện Dark Mode Teal Glow
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-300 font-sans selection:bg-teal-500/30 selection:text-teal-200 flex flex-col">
+      {!isBatterySaver && exam.showBackgroundEffect && (
+        <ParticleBackground type={exam.backgroundEffectType || 'classic'} />
+      )}
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 md:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-4 w-full md:w-auto">
@@ -383,10 +388,13 @@ export const StudentExamRoom: React.FC = () => {
                   <img 
                     src={currentQuestion.imageUrl} 
                     alt="Question content visual" 
-                    className="max-w-full h-auto rounded-2xl shadow-2xl border border-slate-700/50"
+                    className={cn(
+                      "max-w-full h-auto rounded-2xl shadow-2xl border border-slate-700/50",
+                      isBatterySaver ? "opacity-90 blur-[0.5px] max-h-[300px]" : ""
+                    )}
                     referrerPolicy="no-referrer"
                     onError={(e) => console.error("Image failed to load:", currentQuestion.imageUrl)}
-                    onLoad={() => console.log("Image loaded successfully:", currentQuestion.imageUrl.substring(0, 50) + "...")}
+                    onLoad={() => console.log("Image loaded successfully:", currentQuestion.imageUrl?.substring(0, 50) + "...")}
                   />
                 </div>
               )}
@@ -399,7 +407,10 @@ export const StudentExamRoom: React.FC = () => {
                     return (
                       <img 
                         {...props} 
-                        className="max-w-full h-auto rounded-2xl my-6 shadow-2xl border border-slate-700/50 mx-auto block" 
+                        className={cn(
+                          "max-w-full h-auto rounded-2xl my-6 mx-auto block",
+                           isBatterySaver ? "opacity-90 blur-[0.5px] border-none shadow-none max-h-[300px]" : "shadow-2xl border border-slate-700/50"
+                        )} 
                         referrerPolicy="no-referrer"
                       />
                     );

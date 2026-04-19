@@ -8,7 +8,8 @@ export const ParticleBackground: React.FC<ParticleProps> = ({ type = 'electrons'
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (type === 'none') return;
+    // Also disable if battery saver class is present
+    if (type === 'none' || document.body.classList.contains('battery-saver')) return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;

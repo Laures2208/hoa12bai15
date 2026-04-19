@@ -102,9 +102,6 @@ export const AdminTheory: React.FC = () => {
       snapshot.forEach(doc => {
         list.push({ id: doc.id, ...doc.data() } as Theory);
       });
-      if (filterGrade !== 'all') {
-        list = list.filter(t => t.grade === filterGrade);
-      }
       setTheories(list);
       setIsLoading(false);
     }, (error) => {
@@ -441,6 +438,8 @@ export const AdminTheory: React.FC = () => {
   if (isLoading) {
     return <div className="p-8 text-center text-slate-400">Đang tải...</div>;
   }
+
+  const filteredTheories = filterGrade === 'all' ? theories : theories.filter(t => t.grade === filterGrade);
 
   return (
     <div className="p-6">
@@ -903,14 +902,14 @@ export const AdminTheory: React.FC = () => {
       ) : null}
 
       <div className="space-y-4">
-        {theories.length === 0 ? (
+        {filteredTheories.length === 0 ? (
           <div className="text-center py-12 text-slate-500 bg-slate-800/50 rounded-xl border border-slate-700/50">
             {filterGrade !== 'all' 
               ? `Chưa có bài lý thuyết nào cho Khối ${filterGrade}.` 
               : 'Chưa có bài lý thuyết nào.'}
           </div>
         ) : (
-          theories.map(theory => (
+          filteredTheories.map(theory => (
             <div key={theory.id} className="bg-slate-800 rounded-xl border border-slate-700 p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>

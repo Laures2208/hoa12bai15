@@ -15,6 +15,7 @@ import { Top10Leaderboard } from './Top10Leaderboard';
 import { AdminLeaderboard } from './AdminLeaderboard';
 import { Leaderboard } from './Leaderboard';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useBatterySaver } from '../context/BatterySaverContext';
 
 export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
 
@@ -81,6 +82,7 @@ interface ExamRoomProps {
 }
 
 export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo, onTakeExam, onOpenProfile }) => {
+  const { isBatterySaver, toggleBatterySaver } = useBatterySaver();
   const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<Result[]>([]);
   const [progresses, setProgresses] = useState<Record<string, any>>({});
@@ -383,7 +385,16 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                 <ChevronDown className="w-4 h-4" />
               </div>
               <div className="flex items-center gap-3 text-slate-400">
-                <Zap className="w-5 h-5 hover:text-amber-400 cursor-pointer transition-colors" />
+                <button
+                  onClick={toggleBatterySaver}
+                  className={cn(
+                    "p-1.5 rounded-full transition-all flex items-center justify-center",
+                    isBatterySaver ? "bg-yellow-500/20 text-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.3)]" : "hover:text-amber-400 hover:bg-slate-800"
+                  )}
+                  title={isBatterySaver ? "Tắt chế độ máy yếu" : "Bật chế độ máy yếu (Tiết kiệm đồ hoạ)"}
+                >
+                  <Zap className={cn("w-5 h-5", !isBatterySaver && "animate-pulse", isBatterySaver && "fill-yellow-500")} />
+                </button>
                 <Sun className="w-5 h-5 hover:text-amber-400 cursor-pointer transition-colors" />
               </div>
             </div>

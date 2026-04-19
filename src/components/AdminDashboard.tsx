@@ -148,9 +148,6 @@ export const AdminDashboard: React.FC = () => {
         snapshot.forEach(doc => {
           list.push({ id: doc.id, ...doc.data() } as Exam);
         });
-        if (filterGrade !== 'all') {
-          list = list.filter(e => e.grade === filterGrade);
-        }
         setExams(list);
         setIsLoadingExams(false);
       }, (error) => {
@@ -400,6 +397,8 @@ export const AdminDashboard: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  const filteredExams = filterGrade === 'all' ? exams : exams.filter(e => e.grade === filterGrade);
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-300 font-sans selection:bg-teal-500/30 selection:text-teal-200">
@@ -855,7 +854,7 @@ export const AdminDashboard: React.FC = () => {
                   </select>
                   <div className="flex items-center gap-4 bg-slate-900/50 p-2 rounded-2xl border border-slate-800">
                     <div className="px-4 py-2 text-sm font-bold text-teal-400 border-r border-slate-800">
-                      {exams.length} Đề thi
+                      {filteredExams.length} Đề thi
                     </div>
                     <button 
                       onClick={() => {
@@ -879,7 +878,7 @@ export const AdminDashboard: React.FC = () => {
                   <Loader2 className="w-12 h-12 text-teal-500 animate-spin" />
                   <p className="text-slate-500 font-bold animate-pulse">Đang tải ngân hàng đề...</p>
                 </div>
-              ) : exams.length === 0 ? (
+              ) : filteredExams.length === 0 ? (
                 <div className="text-center py-20 bg-slate-900/30 border border-dashed border-slate-800 rounded-[3rem]">
                   <FileText className="w-20 h-20 text-slate-800 mx-auto mb-6" />
                   <h3 className="text-xl font-bold text-white mb-2">Chưa có đề thi nào</h3>
@@ -899,7 +898,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {exams.map((exam) => (
+                  {filteredExams.map((exam) => (
                     <motion.div
                       key={exam.id}
                       whileHover={{ scale: 1.02 }}

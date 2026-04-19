@@ -7,6 +7,7 @@ import { db } from '../firebase';
 import { auth } from '../firebase';
 import { checkAndResetGatekeeper } from '../utils/gatekeeperHelper';
 import { MessageSquare } from 'lucide-react';
+import { useBatterySaver } from '../context/BatterySaverContext';
 
 enum OperationType {
   CREATE = 'create',
@@ -65,6 +66,7 @@ interface GatewayPageProps {
 }
 
 export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess }) => {
+  const { isBatterySaver, toggleBatterySaver } = useBatterySaver();
   const [time, setTime] = useState(new Date());
   const [name, setName] = useState('');
   const [studentClass, setStudentClass] = useState('');
@@ -430,6 +432,35 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
           {/* Header: Clock & Slogan */}
           <header className="p-6 flex flex-col md:flex-row justify-between items-center z-10 border-b border-white/5 bg-slate-900/50 backdrop-blur-md">
             <div className="flex items-center gap-6 mb-4 md:mb-0">
+              <button
+                onClick={toggleBatterySaver}
+                className={cn(
+                  "flex items-center gap-2 p-2 md:px-4 md:py-2 rounded-full border transition-all relative overflow-hidden group",
+                  isBatterySaver ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)]" : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-white"
+                )}
+                title="Chế độ tiết kiệm pin (Cho máy yếu)"
+              >
+                {isBatterySaver && (
+                  <div className="absolute inset-0 bg-yellow-500/10 animate-pulse"></div>
+                )}
+                <div className={cn(
+                  "flex items-center justify-center rounded-full p-1",
+                  !isBatterySaver ? "bg-yellow-500/20 text-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse" : "bg-transparent text-yellow-400"
+                )}>
+                  <Zap className="w-5 h-5 relative z-10" />
+                </div>
+                <span className="hidden md:inline text-sm font-bold tracking-wide relative z-10">
+                  {isBatterySaver ? 'TIẾT KIỆM PIN: BẬT' : 'BẬT TIẾT KIỆM PIN'}
+                </span>
+                
+                {/* Ping animation indicator when battery saver is off to draw attention */}
+                {!isBatterySaver && (
+                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+                  </span>
+                )}
+              </button>
               <div className="relative">
                 <Bell className="w-6 h-6 text-teal-400" />
                 {recentAnnouncements.length > 0 && (

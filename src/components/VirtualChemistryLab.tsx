@@ -362,14 +362,22 @@ export const VirtualChemistryLab = () => {
     console.log(`[Audio Playing]: ${type}`);
   }, [soundEnabled]);
 
-  // Canvas Animation Loop
+// --- CANVAS PARTICLE SYSTEM ---
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    
+    // Stop canvas animation completely when battery saver is on
+    if (document.body.classList.contains('battery-saver')) {
+       ctx.clearRect(0, 0, canvas.width, canvas.height);
+       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+       return;
+    }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
 
     // Spawn particles based on state
     if (labState === 'pouring' && subA) {

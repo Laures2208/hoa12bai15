@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, X, BarChart2, Award, CheckCircle, TrendingUp, BookOpen, Lock } from 'lucide-react';
+import { User, X, BarChart2, Award, CheckCircle, TrendingUp, BookOpen, Lock, Zap } from 'lucide-react';
+// ...
+import { useBatterySaver } from '../context/BatterySaverContext';
 import { collection, query, where, getDocs, orderBy, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { cn } from '../lib/utils';
@@ -41,7 +43,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
   const [history, setHistory] = useState<ExamHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState<ExamHistory | null>(null);
-  const [showAnswers, setShowAnswers] = useState(false);
+  const [showAnswers, setShowAnswers] = useState(true);
+  const { isBatterySaver, toggleBatterySaver } = useBatterySaver();
 
   useEffect(() => {
     let unsubscribe: () => void;
@@ -161,6 +164,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
                     <span className="px-3 py-1 bg-teal-500/10 text-teal-400 text-xs font-bold rounded-full border border-teal-500/20 uppercase tracking-wider">
                       Lớp: {studentInfo.studentClass}
                     </span>
+                    <button
+                      onClick={toggleBatterySaver}
+                      className={cn(
+                        "p-1.5 rounded-full border transition-all",
+                         isBatterySaver ? "bg-yellow-500 text-white border-yellow-400" : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
+                      )}
+                      title="Chế độ tiết kiệm pin"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                    </button>
                     <span className="px-3 py-1 bg-slate-800 text-slate-400 text-xs font-bold rounded-full border border-slate-700 uppercase tracking-wider">
                       Học sinh
                     </span>
@@ -218,7 +231,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
                       {history.length > 0 ? (
                         history.map((exam, index) => {
                           const title = exam.examDetails?.title || `Bài thi ${history.length - index}`;
-                          const isReviewAllowed = exam.examDetails?.allowReview !== false; // Admin controls this
+                          const isReviewAllowed = exam.examDetails?.allowReview !== false && showAnswers; // Admin controls this
                           let maxPoints = 10;
                           if (exam.examDetails?.sectionPoints) {
                             maxPoints = Number(Object.values(exam.examDetails.sectionPoints).reduce((a: number, b: any) => a + Number(b), 0));
@@ -279,90 +292,92 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, stu
                       <X className="w-5 h-5"/> Đóng
                     </button>
                   </div>
-                  {selectedExam.examDetails?.allowReview === false && (
-                    <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
-                      <Lock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                      <p className="text-sm text-amber-200">
-                        Tính năng xem lại đáp án và lời giải đang bị khóa bởi Giáo viên. Bạn chỉ có thể theo dõi lại bài làm của mình.
+                  {(selectedExam.examDetails?.allowReview === false || !showAnswers) ? (
+                    <div className="flex flex-col items-center justify-center p-8 bg-amber-500/10 border border-amber-500/20 rounded-2xl gap-4">
+                      <Lock className="w-12 h-12 text-amber-500" />
+                      <h4 className="text-xl font-bold text-amber-400">Đã khóa xem lại bài</h4>
+                      <p className="text-sm text-amber-200 text-center max-w-md">
+                        Giáo viên đã khóa tính năng xem lại bài thi này. Bạn không thể xem lại đề thi, bài làm cũng như đáp án chi tiết.
                       </p>
                     </div>
-                  )}
-                  <div className="space-y-4">
-                    {selectedExam.answers.map((ans: any, idx: number) => {
-                      const questions = selectedExam.examDetails?.questions || [];
-                      const isReviewAllowed = selectedExam.examDetails?.allowReview !== false;
-                      const question = questions.find((q: any) => String(q.id) === String(ans.questionId)) || questionBank.find(q => String(q.id) === String(ans.questionId));
-                      
-                      if (!question) {
-                        return (
-                          <div key={idx} className="p-4 rounded-xl border bg-slate-800/50 border-slate-700">
-                             <p className="text-sm font-bold text-white mb-2">Câu {idx + 1}</p>
-                             <p className="text-sm text-slate-400">Nội dung câu hỏi này không còn tồn tại hoặc đã bị xóa.</p>
-                          </div>
-                        );
-                      }
-                      
-                      let studentAnswerStr = "-";
-                      let correctAnswerStr = "-";
+                  ) : (
+                    <div className="space-y-4">
+                      {selectedExam.answers.map((ans: any, idx: number) => {
+                        const questions = selectedExam.examDetails?.questions || [];
+                        const isReviewAllowed = true; // explicitly true here since we wrap it in the else branch
+                        const question = questions.find((q: any) => String(q.id) === String(ans.questionId)) || questionBank.find(q => String(q.id) === String(ans.questionId));
+                        
+                        if (!question) {
+                          return (
+                            <div key={idx} className="p-4 rounded-xl border bg-slate-800/50 border-slate-700">
+                               <p className="text-sm font-bold text-white mb-2">Câu {idx + 1}</p>
+                               <p className="text-sm text-slate-400">Nội dung câu hỏi này không còn tồn tại hoặc đã bị xóa.</p>
+                            </div>
+                          );
+                        }
+                        
+                        let studentAnswerStr = "-";
+                        let correctAnswerStr = "-";
 
-                      if (question.type === 'multiple_choice' || question.type === undefined) {
-                        studentAnswerStr = ans.selectedOriginalIndex !== undefined && question.options && question.options[ans.selectedOriginalIndex] ? question.options[ans.selectedOriginalIndex] : "Không trả lời";
-                        correctAnswerStr = question.options && question.correctAnswer !== undefined ? question.options[question.correctAnswer] : "-";
-                      } else if (question.type === 'true_false') {
-                        if (ans.subAnswers) {
-                          studentAnswerStr = ans.subAnswers.map((s: string, i: number) => `Ý ${['a', 'b', 'c', 'd'][i] || i+1}: ${s === 'True' ? 'Đúng' : s === 'False' ? 'Sai' : 'Trống'}`).join(' | ');
+                        if (question.type === 'multiple_choice' || question.type === undefined) {
+                          studentAnswerStr = ans.selectedOriginalIndex !== undefined && question.options && question.options[ans.selectedOriginalIndex] ? question.options[ans.selectedOriginalIndex] : "Không trả lời";
+                          correctAnswerStr = question.options && question.correctAnswer !== undefined ? question.options[question.correctAnswer] : "-";
+                        } else if (question.type === 'true_false') {
+                          if (ans.subAnswers) {
+                            studentAnswerStr = ans.subAnswers.map((s: string, i: number) => `Ý ${['a', 'b', 'c', 'd'][i] || i+1}: ${s === 'True' ? 'Đúng' : s === 'False' ? 'Sai' : 'Trống'}`).join(' | ');
+                          }
+                          if (question.options) {
+                            correctAnswerStr = question.options.map((opt: any, i: number) => `Ý ${['a', 'b', 'c', 'd'][i] || i+1}: ${opt.isCorrect ? 'Đúng' : 'Sai'}`).join(' | ');
+                          }
+                        } else if (question.type === 'short_answer') {
+                          studentAnswerStr = ans.shortAnswer || "Không trả lời";
+                          correctAnswerStr = typeof question.answer === 'string' ? question.answer : (question.answer?.join(', ') || "-");
                         }
-                        if (question.options) {
-                          correctAnswerStr = question.options.map((opt: any, i: number) => `Ý ${['a', 'b', 'c', 'd'][i] || i+1}: ${opt.isCorrect ? 'Đúng' : 'Sai'}`).join(' | ');
-                        }
-                      } else if (question.type === 'short_answer') {
-                        studentAnswerStr = ans.shortAnswer || "Không trả lời";
-                        correctAnswerStr = typeof question.answer === 'string' ? question.answer : (question.answer?.join(', ') || "-");
-                      }
-                      
-                      return (
-                      <div key={idx} className={cn("p-4 rounded-xl border", isReviewAllowed ? (ans.isCorrect ? "bg-emerald-950/20 border-emerald-900/50" : "bg-rose-950/20 border-rose-900/50") : "bg-slate-800/50 border-slate-700")}>
-                        <p className="text-sm font-bold text-white mb-2">Câu {idx + 1} {isReviewAllowed && (ans.isCorrect ? '(+Đúng)' : '(Sai)')}</p>
-                        <div className="text-sm text-slate-200 mb-4 bg-slate-900/50 p-3 rounded-lg flex flex-col gap-2">
-                          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                            {fixLatex(question.text || '')}
-                          </ReactMarkdown>
-                          {question.type === 'true_false' && question.options && (
-                            <ul className="list-disc pl-5 mt-2 text-slate-300">
-                              {question.options.map((opt: any, i: number) => (
-                                <li key={i}>
-                                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                    {fixLatex(opt.text || '')}
-                                  </ReactMarkdown>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <div className={cn("text-sm", isReviewAllowed ? (ans.isCorrect ? "text-emerald-400" : "text-rose-400") : "text-slate-300")}>
-                            <span className="font-bold opacity-80">Đáp án của bạn:</span> <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(studentAnswerStr)}</ReactMarkdown>
+                        
+                        return (
+                        <div key={idx} className={cn("p-4 rounded-xl border", ans.isCorrect ? "bg-emerald-950/20 border-emerald-900/50" : "bg-rose-950/20 border-rose-900/50")}>
+                          <p className="text-sm font-bold text-white mb-2">Câu {idx + 1} {ans.isCorrect ? '(+Đúng)' : '(Sai)'}</p>
+                          <div className="text-sm text-slate-200 mb-4 bg-slate-900/50 p-3 rounded-lg flex flex-col gap-2">
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                              {fixLatex(question.text || '')}
+                            </ReactMarkdown>
+                            {question.type === 'true_false' && question.options && (
+                              <ul className="list-disc pl-5 mt-2 text-slate-300">
+                                {question.options.map((opt: any, i: number) => (
+                                  <li key={i}>
+                                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                      {fixLatex(opt.text || '')}
+                                    </ReactMarkdown>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
                           </div>
-                          {isReviewAllowed && !ans.isCorrect && (
-                            <div className="text-sm text-emerald-400">
-                              <span className="font-bold opacity-80">Đáp án đúng:</span> <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(correctAnswerStr)}</ReactMarkdown>
+                          <div className="space-y-2">
+                            <div className={cn("text-sm", ans.isCorrect ? "text-emerald-400" : "text-rose-400")}>
+                              <span className="font-bold opacity-80">Đáp án của bạn:</span> <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(studentAnswerStr)}</ReactMarkdown>
+                            </div>
+                            {!ans.isCorrect && (
+                              <div className="text-sm text-emerald-400">
+                                <span className="font-bold opacity-80">Đáp án đúng:</span> <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{fixLatex(correctAnswerStr)}</ReactMarkdown>
+                              </div>
+                            )}
+                          </div>
+                          {question.insight && (
+                            <div className="mt-4 pt-4 border-t border-slate-700/50">
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1"><BookOpen className="w-3 h-3"/> Hướng dẫn giải chi tiết:</p>
+                              <div className="text-sm text-slate-300 whitespace-pre-wrap bg-slate-900/30 p-3 rounded-lg border border-slate-800/50">
+                                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                  {fixLatex(question.insight)}
+                                </ReactMarkdown>
+                              </div>
                             </div>
                           )}
                         </div>
-                        {isReviewAllowed && question.insight && (
-                          <div className="mt-4 pt-4 border-t border-slate-700/50">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1"><BookOpen className="w-3 h-3"/> Hướng dẫn giải chi tiết:</p>
-                            <div className="text-sm text-slate-300 whitespace-pre-wrap bg-slate-900/30 p-3 rounded-lg border border-slate-800/50">
-                              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                {fixLatex(question.insight)}
-                              </ReactMarkdown>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
