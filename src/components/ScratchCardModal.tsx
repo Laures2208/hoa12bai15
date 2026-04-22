@@ -205,14 +205,18 @@ export const ScratchCardModal: React.FC<ScratchCardModalProps> = ({ result, onCl
         </div>
 
         {isScratched && (
-          <motion.button
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            onClick={handleViewReview}
-            className="w-full py-4 bg-teal-500 hover:bg-teal-600 text-white font-black text-lg rounded-2xl transition-all shadow-[0_0_20px_rgba(20,184,166,0.3)] hover:shadow-[0_0_30px_rgba(20,184,166,0.5)]"
+            className="w-full p-4 mt-6 bg-slate-800/80 border border-teal-500/30 rounded-2xl shadow-[0_0_20px_rgba(20,184,166,0.1)] flex flex-col items-center justify-center text-center"
           >
-            Xem chi tiết bài làm
-          </motion.button>
+            <span className="text-teal-400 font-bold mb-1">
+              Bạn có thể xem lại chi tiết bài làm
+            </span>
+            <span className="text-slate-300 text-sm">
+              ở phòng thi của bài đó
+            </span>
+          </motion.div>
         )}
       </motion.div>
     </div>

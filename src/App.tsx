@@ -1137,6 +1137,8 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData }: { setView: (v:
     }
 
     setExamStarted(true);
+    setQuizFinished(false);
+    setShowReview(false);
     setFullScreenViolations(0);
     setShowFullScreenWarning(false);
     if (awayTimeoutRef.current) {
@@ -1219,13 +1221,44 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData }: { setView: (v:
     });
   };
 
-  if (!examStarted) {
+  if (!examStarted && !showReview) {
     return (
       <ExamRoom 
         isAdmin={false} 
         studentInfo={studentInfo} 
         onTakeExam={handleStartExam} 
         onOpenProfile={onOpenProfile}
+        onViewReview={(result, examData) => {
+          setCurrentExam(examData);
+          setScore(result.score);
+          setTotalPoints(result.totalPoints || 10);
+          
+          let finalQuestions = result.preparedQuestions;
+          let finalAnswers = result.answers || [];
+          
+          if (!finalQuestions && examData.questions) {
+            finalQuestions = examData.questions.map((q: any) => {
+              const optionsWithIndices = (q.options || []).map((opt: string, idx: number) => ({ text: opt, originalIndex: idx }));
+              return {
+                ...q,
+                shuffledOptions: optionsWithIndices
+              };
+            });
+            
+            finalAnswers = finalAnswers.map((a: any) => ({
+              ...a,
+              questionId: typeof a.questionId === 'string' ? a.questionId.split('_')[0] : a.questionId
+            }));
+          }
+          
+          setPreparedQuestions(finalQuestions || []);
+          setAnswers(finalAnswers);
+          setQuizFinished(true);
+          setShowReview(true);
+          setExamStarted(false);
+          // Scroll to top when showing review
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       />
     );
   }
@@ -3289,7 +3322,10 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               )}
             </button>
             <button 
-              onClick={() => setView('exam-room')} 
+              onClick={() => {
+                setReviewData(null);
+                setView('exam-room');
+              }} 
               className="px-4 md:px-6 py-2 bg-teal-500 text-white font-bold rounded-full text-xs md:text-sm hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20 nav-energy-btn"
             >
               Vào thi

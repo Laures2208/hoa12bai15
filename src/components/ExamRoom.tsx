@@ -80,9 +80,10 @@ interface ExamRoomProps {
   studentInfo?: { name: string; studentClass: string; grade: '10' | '11' | '12' };
   onTakeExam?: (exam: Exam, resume?: boolean) => void;
   onOpenProfile?: () => void;
+  onViewReview?: (result: any, examData: any) => void;
 }
 
-export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo, onTakeExam, onOpenProfile }) => {
+export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo, onTakeExam, onOpenProfile, onViewReview }) => {
   const { isBatterySaver, toggleBatterySaver } = useBatterySaver();
   const [exams, setExams] = useState<Exam[]>([]);
   const [results, setResults] = useState<Result[]>([]);
@@ -1144,58 +1145,75 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                 {/* Footer (Actions) */}
                 <div className="p-6 border-t border-slate-800 bg-slate-900 border-opacity-50 flex flex-col gap-3">
                   {(() => {
+                    const studentAttempts = results
+                      .filter(r => r.examId === selectedExamForRoom.id)
+                      .sort((a, b) => ((a as any).submittedAt?.toDate()?.getTime() || 0) - ((b as any).submittedAt?.toDate()?.getTime() || 0));
+                    const latestAttempt = studentAttempts[studentAttempts.length - 1];
+                    const canReview = latestAttempt && latestAttempt.isDistributed === true;
+
                     const progressKey = `exam_progress_${selectedExamForRoom.id}_${studentInfo?.name}_${studentInfo?.studentClass}`;
                     const localSavedStr = localStorage.getItem(progressKey);
                     const localSaved = localSavedStr ? JSON.parse(localSavedStr) : null;
                     const saved = progresses[selectedExamForRoom.id] || localSaved;
                     const hasProgress = !!saved;
 
-                    if (hasProgress) {
-                      const isForceSubmit = saved.forceSubmit && (selectedExamForRoom.type === 'Bài thi' || selectedExamForRoom.type === 'Bài kiểm tra');
-                      return (
-                        <>
+                    return (
+                      <>
+                        {canReview && (
+                          <button
+                            onClick={() => {
+                              setSelectedExamForRoom(null);
+                              if (onViewReview) onViewReview(latestAttempt, selectedExamForRoom);
+                            }}
+                            className="w-full flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-300 shadow-[0_0_15px_rgba(99,102,241,0.3)]"
+                          >
+                            <FileText className="w-5 h-5" />
+                            XEM LẠI BÀI LÀM
+                          </button>
+                        )}
+                        {hasProgress ? (
+                          <>
+                            <button 
+                              onClick={() => {
+                                setSelectedExamForRoom(null);
+                                handleTakeExam(selectedExamForRoom, true);
+                              }}
+                              disabled={selectedExamForRoom.isOpen === false}
+                              className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <PlayCircle className="w-5 h-5" />
+                              LÀM TIẾP
+                            </button>
+                            {!(saved.forceSubmit && (selectedExamForRoom.type === 'Bài thi' || selectedExamForRoom.type === 'Bài kiểm tra')) && (
+                              <button 
+                                onClick={() => {
+                                  if (window.confirm("Bạn có chắc chắn muốn làm lại từ đầu? Mọi tiến trình đã lưu sẽ bị xóa.")) {
+                                    setSelectedExamForRoom(null);
+                                    handleTakeExam(selectedExamForRoom, false);
+                                  }
+                                }}
+                                disabled={selectedExamForRoom.isOpen === false}
+                                className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-teal-500 text-white px-6 py-4 rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700"
+                              >
+                                <RefreshCw className="w-5 h-5" />
+                                LÀM LẠI
+                              </button>
+                            )}
+                          </>
+                        ) : (
                           <button 
                             onClick={() => {
                               setSelectedExamForRoom(null);
-                              handleTakeExam(selectedExamForRoom, true);
+                              handleTakeExam(selectedExamForRoom);
                             }}
                             disabled={selectedExamForRoom.isOpen === false}
-                            className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full flex items-center justify-center gap-2 bg-teal-500 hover:bg-teal-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(20,184,166,0.2)]"
                           >
                             <PlayCircle className="w-5 h-5" />
-                            LÀM TIẾP
+                            LÀM BÀI
                           </button>
-                          {!isForceSubmit && (
-                            <button 
-                              onClick={() => {
-                                if (window.confirm("Bạn có chắc chắn muốn làm lại từ đầu? Mọi tiến trình đã lưu sẽ bị xóa.")) {
-                                  setSelectedExamForRoom(null);
-                                  handleTakeExam(selectedExamForRoom, false);
-                                }
-                              }}
-                              disabled={selectedExamForRoom.isOpen === false}
-                              className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-teal-500 text-white px-6 py-4 rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700"
-                            >
-                              <RefreshCw className="w-5 h-5" />
-                              LÀM LẠI
-                            </button>
-                          )}
-                        </>
-                      );
-                    }
-                    
-                    return (
-                      <button 
-                        onClick={() => {
-                          setSelectedExamForRoom(null);
-                          handleTakeExam(selectedExamForRoom);
-                        }}
-                        disabled={selectedExamForRoom.isOpen === false}
-                        className="w-full flex items-center justify-center gap-2 bg-teal-500 hover:bg-teal-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(20,184,166,0.2)]"
-                      >
-                        <PlayCircle className="w-5 h-5" />
-                        LÀM BÀI
-                      </button>
+                        )}
+                      </>
                     );
                   })()}
                 </div>
