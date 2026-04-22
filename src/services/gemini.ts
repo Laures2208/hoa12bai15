@@ -20,6 +20,26 @@ export async function getGeminiApiKey(): Promise<string | null> {
   return null;
 }
 
+export async function askGeminiJSON(prompt: string) {
+  const apiKey = await getGeminiApiKey();
+  if (!apiKey) {
+    console.warn('GEMINI_API_KEY is not set');
+    return null;
+  }
+
+  const genAI = new GoogleGenAI({ apiKey });
+  
+  const response = await genAI.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: prompt,
+    config: {
+      temperature: 0.1,
+    }
+  });
+  
+  return response.text;
+}
+
 export async function askGemini(prompt: string, history: { role: 'user' | 'model', parts: { text: string }[] }[]) {
   const apiKey = await getGeminiApiKey();
   if (!apiKey) {

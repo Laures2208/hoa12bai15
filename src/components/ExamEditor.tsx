@@ -38,6 +38,57 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [activeUrlInput, setActiveUrlInput] = useState<string | null>(null);
   const [optionUrlInput, setOptionUrlInput] = useState('');
+  const [isCheckingAllLatex, setIsCheckingAllLatex] = useState(false);
+
+  const handleFixAllLatex = async () => {
+    setIsCheckingAllLatex(true);
+    
+    try {
+      const { askGeminiJSON } = await import('../services/gemini');
+      const chunkSize = 10;
+      let fixedQuestions: Question[] = [];
+      
+      for (let i = 0; i < questions.length; i += chunkSize) {
+        const chunk = questions.slice(i, i + chunkSize);
+        const prompt = `Bạn là chuyên gia về Định dạng LaTeX hóa học và JSON.
+Dưới đây là một mảng JSON chứa các câu hỏi trắc nghiệm.
+Nhiệm vụ của bạn là:
+1. Duyệt qua TẤT CẢ văn bản ở 'content', 'options', 'subQuestions', 'explanation'.
+2. TÌM và SỬA sửa các lỗi định dạng LaTeX hóa học: bổ sung thẻ $ $ cho công thức hóa học thiếu LaTeX. Sửa các số mũ ion (Ví dụ: Cu2+ thành $Cu^{2+}$), chỉ số dưới (Fe2O3 thành $Fe_2O_3$), hay các phương trình phản ứng hóa học cho chính xác.
+3. CHỈ trả về đúng CẤU TRÚC JSON Array hợp lệ. TUYỆT ĐỐI KHÔNG giải thích thêm, KHÔNG CÓ markdown gạch chéo \`\`\`json ở đầu và cuối (output sẽ được JSON.parse() luôn nên không được chứa ký tự dư).
+4. Giữ nguyên ids và mọi key dữ liệu khác.
+
+JSON đầu vào:
+${JSON.stringify(chunk)}`;
+
+        const response = await askGeminiJSON(prompt);
+        if (response) {
+          const cleaned = response.replace(/```json/gi, '').replace(/```/g, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (Array.isArray(parsed)) {
+              fixedQuestions = fixedQuestions.concat(parsed);
+            } else {
+              fixedQuestions = fixedQuestions.concat(chunk);
+            }
+          } catch (e) {
+            console.error("JSON parse error from Gemini", e);
+            fixedQuestions = fixedQuestions.concat(chunk);
+          }
+        } else {
+          fixedQuestions = fixedQuestions.concat(chunk);
+        }
+      }
+      
+      onUpdate(fixedQuestions, tempSectionPoints);
+      alert('Đã kiểm tra và sửa lỗi LaTeX cho toàn bộ đề thi thành công!');
+    } catch (error) {
+      console.error(error);
+      alert('Đã xảy ra lỗi kết nối AI khi sửa LaTeX.');
+    } finally {
+      setIsCheckingAllLatex(false);
+    }
+  };
 
   const handleAddImageUrl = () => {
     if (!imageUrlInput.trim() || !tempQuestion) return;
@@ -240,10 +291,21 @@ export const ExamEditor: React.FC<ExamEditorProps> = ({ questions, sectionPoints
         </div>
       </div>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-          <Pencil className="w-6 h-6 text-teal-400" />
-          Biên tập câu hỏi
-        </h3>
+        <div className="flex items-center gap-4">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <Pencil className="w-6 h-6 text-teal-400" />
+            Biên tập câu hỏi
+          </h3>
+          <button
+            type="button"
+            onClick={handleFixAllLatex}
+            disabled={isCheckingAllLatex || questions.length === 0}
+            className="flex items-center gap-2 text-sm font-bold bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 px-4 py-1.5 rounded-xl transition-colors disabled:opacity-50"
+          >
+            {isCheckingAllLatex ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {isCheckingAllLatex ? 'AI đang xử lý...' : 'AI Sửa lỗi LaTeX'}
+          </button>
+        </div>
         <span className="text-slate-400 text-sm">{questions.length} câu hỏi</span>
       </div>
 

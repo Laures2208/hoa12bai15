@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, where, onSnapshot, orderBy, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, updateDoc, doc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { X, Users, Clock, CheckCircle2, XCircle, ChevronDown, ChevronUp, Search, Download, RefreshCw, Trash2 } from 'lucide-react';
+import { X, Users, Clock, CheckCircle2, XCircle, ChevronDown, ChevronUp, Search, Download, RefreshCw, Trash2, Send } from 'lucide-react';
 import { Question } from './ExamRoom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -28,6 +28,7 @@ interface StudentResult {
   createdAt: any;
   answers: any[];
   canRetake?: boolean;
+  isDistributed?: boolean;
 }
 
 export const ExamResultsModal: React.FC<ExamResultsModalProps> = ({ examId, examTitle, questions, onClose }) => {
@@ -96,6 +97,71 @@ export const ExamResultsModal: React.FC<ExamResultsModalProps> = ({ examId, exam
     }
   };
 
+  const handleDistributeClass = async (className: string) => {
+    try {
+      const classResults = groupedResults[className] || [];
+      if (classResults.length === 0) return;
+
+      const batch = writeBatch(db);
+      classResults.forEach(result => {
+        batch.update(doc(db, 'results', result.id), {
+          isDistributed: true,
+          distributedAt: serverTimestamp(),
+          scratched: false
+        });
+      });
+      await batch.commit();
+      
+      alert(`Đã phát bài thành công cho tất cả học sinh lớp ${className}!`);
+    } catch (error) {
+      console.error("Error distributing class results:", error);
+      alert("Có lỗi xảy ra khi phát bài cho lớp.");
+    }
+  };
+
+  const handleDistributeStudent = async (resultId: string) => {
+    try {
+      await updateDoc(doc(db, 'results', resultId), {
+        isDistributed: true,
+        distributedAt: serverTimestamp(),
+        scratched: false
+      });
+      alert(`Đã phát bài thành công cho học sinh!`);
+    } catch (error) {
+      console.error("Error distributing student result:", error);
+      alert("Có lỗi xảy ra khi phát bài cho học sinh.");
+    }
+  };
+
+  const handleDistributeAll = async () => {
+    if (results.length === 0) return;
+    if (!window.confirm(`Bạn có chắc chắn muốn phát bài cho tất cả ${results.length} học sinh đã nộp?`)) {
+      return;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      results.forEach(result => {
+        batch.update(doc(db, 'results', result.id), {
+          isDistributed: true,
+          distributedAt: serverTimestamp(),
+          scratched: false
+        });
+      });
+      
+      // Update exam timestamp as well
+      batch.update(doc(db, 'exams_bank', examId), {
+        distributedAt: serverTimestamp()
+      });
+
+      await batch.commit();
+      alert('Đã phát bài thành công cho tất cả học sinh!');
+    } catch (error) {
+      console.error("Error distributing all results:", error);
+      alert("Có lỗi xảy ra khi phát bài toàn bộ.");
+    }
+  };
+
   const handleDeleteResult = async (resultId: string) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa kết quả này? Hành động này không thể hoàn tác.")) {
       return;
@@ -154,6 +220,14 @@ export const ExamResultsModal: React.FC<ExamResultsModalProps> = ({ examId, exam
           </div>
           <div className="flex items-center gap-3">
             <button
+              onClick={handleDistributeAll}
+              disabled={results.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-xl hover:bg-purple-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send className="w-4 h-4" />
+              <span className="font-bold text-sm">Phát bài tất cả</span>
+            </button>
+            <button
               onClick={exportToCSV}
               disabled={results.length === 0}
               className="flex items-center gap-2 px-4 py-2 bg-teal-500/10 text-teal-400 rounded-xl hover:bg-teal-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -196,15 +270,34 @@ export const ExamResultsModal: React.FC<ExamResultsModalProps> = ({ examId, exam
             Object.entries(groupedResults).map(([className, classResults]) => {
               const avgScore = (classResults.reduce((acc, curr) => acc + curr.score, 0) / classResults.length).toFixed(1);
               const totalPoints = classResults[0]?.totalPoints || 10;
+              const isAllClassDistributed = classResults.every(r => r.isDistributed);
               
               return (
                 <div key={className} className="space-y-4">
                   <div className="flex items-center justify-between bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                      <Users className="w-5 h-5 text-teal-400" />
-                      Lớp {className}
-                    </h3>
                     <div className="flex items-center gap-4">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <Users className="w-5 h-5 text-teal-400" />
+                        Lớp {className}
+                      </h3>
+                      {isAllClassDistributed && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-xs font-bold border border-emerald-500/20 animate-in fade-in zoom-in duration-500">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Đã phát bài cho lớp
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDistributeClass(className);
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 text-purple-400 rounded-xl hover:bg-purple-500 hover:text-white transition-colors text-sm font-bold"
+                      >
+                        <Send className="w-4 h-4" />
+                        Phát bài lớp này
+                      </button>
                       <span className="text-sm text-slate-400">Sĩ số: <span className="text-white font-bold">{classResults.length}</span></span>
                       <span className="text-sm text-slate-400">Điểm TB: <span className="text-emerald-400 font-bold text-lg">{avgScore}/{totalPoints}</span></span>
                     </div>
@@ -224,9 +317,29 @@ export const ExamResultsModal: React.FC<ExamResultsModalProps> = ({ examId, exam
                             </div>
                             <div>
                               <h3 className="text-lg font-bold text-white">{result.studentName}</h3>
+                              {result.isDistributed && (
+                                <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
+                                  <CheckCircle2 className="w-3 h-3" /> Đã nhận bài
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-6">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDistributeStudent(result.id);
+                              }}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-bold text-sm ${
+                                result.isDistributed 
+                                  ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white border border-emerald-500/20'
+                                  : 'bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white border border-transparent'
+                              }`}
+                              title={result.isDistributed ? 'Đã phát bài (Nhấn để phát lại)' : 'Phát bài cho học sinh này'}
+                            >
+                              {result.isDistributed ? <CheckCircle2 className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                              <span>{result.isDistributed ? 'Đã phát' : 'Phát bài'}</span>
+                            </button>
                             <div className="flex flex-col items-end">
                               <span className="text-sm text-slate-400 flex items-center gap-1">
                                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />

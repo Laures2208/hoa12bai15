@@ -114,9 +114,65 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
   const [endTime, setEndTime] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingLatex, setIsCheckingLatex] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
+
+  const handleAILatexCheck = async () => {
+    if (questions.length === 0) return;
+    setIsCheckingLatex(true);
+    setToastMessage('Đang phân tích và sửa lỗi LaTeX bằng AI (vui lòng chờ)...');
+    setShowToast(true);
+
+    try {
+      const { askGeminiJSON } = await import('../services/gemini');
+      const chunkSize = 10;
+      let fixedQuestions: Question[] = [];
+      
+      for (let i = 0; i < questions.length; i += chunkSize) {
+        setToastMessage(`AI đang sửa LaTeX phần ${i + 1} đến ${Math.min(i + chunkSize, questions.length)} / ${questions.length}...`);
+        const chunk = questions.slice(i, i + chunkSize);
+        const prompt = `Bạn là chuyên gia về Định dạng LaTeX hóa học và JSON.
+Dưới đây là một mảng JSON chứa các câu hỏi trắc nghiệm.
+Nhiệm vụ của bạn là:
+1. Duyệt qua TẤT CẢ văn bản ở 'content', 'options', 'subQuestions', 'explanation'.
+2. TÌM và SỬA sửa các lỗi định dạng LaTeX hóa học: bổ sung thẻ $ $ cho công thức hóa học thiếu LaTeX. Sửa các số mũ ion (Ví dụ: Cu2+ thành $Cu^{2+}$), chỉ số dưới (Fe2O3 thành $Fe_2O_3$), hay các phương trình phản ứng hóa học cho chính xác.
+3. CHỈ trả về đúng CẤU TRÚC JSON Array hợp lệ. TUYỆT ĐỐI KHÔNG giải thích thêm, KHÔNG CÓ markdown gạch chéo \`\`\`json ở đầu và cuối (output sẽ được JSON.parse() luôn nên không được chứa ký tự dư).
+4. Giữ nguyên ids và mọi key dữ liệu khác.
+
+JSON đầu vào:
+${JSON.stringify(chunk)}`;
+
+        const response = await askGeminiJSON(prompt);
+        if (response) {
+          const cleaned = response.replace(/```json/gi, '').replace(/```/g, '').trim();
+          try {
+            const parsed = JSON.parse(cleaned);
+            if (Array.isArray(parsed)) {
+              fixedQuestions = fixedQuestions.concat(parsed);
+            } else {
+              fixedQuestions = fixedQuestions.concat(chunk);
+            }
+          } catch (e) {
+            console.error("JSON parse error from Gemini", e);
+            fixedQuestions = fixedQuestions.concat(chunk);
+          }
+        } else {
+          fixedQuestions = fixedQuestions.concat(chunk);
+        }
+      }
+      
+      setQuestions(fixedQuestions);
+      setToastMessage('Đã kiểm tra và sửa lỗi LaTeX thành công!');
+    } catch (error) {
+      console.error(error);
+      setToastMessage('Đã xảy ra lỗi kết nối AI khi sửa LaTeX.');
+    } finally {
+      setIsCheckingLatex(false);
+      setTimeout(() => setShowToast(false), 3000);
+    }
+  };
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [showQuestionsPreview, setShowQuestionsPreview] = useState(false);
   const [formMode, setFormMode] = useState<'manual' | 'import'>('manual');
@@ -684,12 +740,12 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                   />
                 </div>
 
-                {/* Docx Uploader Section - Only in Import Mode */}
-                {formMode === 'import' && (
+                {/* Docx Uploader Section - Only in Import Mode or Editing Mode */}
+                {(formMode === 'import' || editingExamId) && (
                   <div className="pt-4 border-t border-slate-800">
                     <label className="block text-sm font-bold text-teal-400 mb-4 flex items-center gap-2">
                       <FileText className="w-5 h-5" />
-                      Tải lên danh sách câu hỏi (.docx)
+                      {editingExamId ? 'Danh sách câu hỏi (Có thể tải lên file .docx mới để ghi đè)' : 'Tải lên danh sách câu hỏi (.docx)'}
                     </label>
                     <AdvancedWordProcessor onProcessed={(newQuestions) => {
                       setQuestions(newQuestions);
@@ -701,14 +757,26 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                     
                     {questions.length > 0 && (
                       <div className="mt-4">
-                        <button 
-                          type="button"
-                          onClick={() => setShowQuestionsPreview(!showQuestionsPreview)}
-                          className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-teal-400 transition-colors"
-                        >
-                          {showQuestionsPreview ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          {showQuestionsPreview ? 'Ẩn preview câu hỏi' : `Xem ${questions.length} câu hỏi đã tải lên`}
-                        </button>
+                        <div className="flex items-center justify-between mb-2">
+                          <button 
+                            type="button"
+                            onClick={() => setShowQuestionsPreview(!showQuestionsPreview)}
+                            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-teal-400 transition-colors"
+                          >
+                            {showQuestionsPreview ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            {showQuestionsPreview ? 'Ẩn preview câu hỏi' : `Xem ${questions.length} câu hỏi đã tải lên`}
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={handleAILatexCheck}
+                            disabled={isCheckingLatex}
+                            className="flex items-center gap-2 text-sm font-bold bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
+                          >
+                            <Zap className="w-4 h-4" />
+                            {isCheckingLatex ? 'AI đang sửa...' : 'AI Sửa lỗi LaTeX'}
+                          </button>
+                        </div>
                         
                         <AnimatePresence>
                           {showQuestionsPreview && (

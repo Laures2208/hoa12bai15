@@ -240,45 +240,6 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleDistributeExam = async (examId: string) => {
-    try {
-      if (!db) return;
-      const resultsQuery = query(collection(db, 'results'), where('examId', '==', examId));
-      const snapshot = await getDocs(resultsQuery);
-      
-      if (snapshot.empty) {
-        setToastMessage('Chưa có học sinh nào nộp bài thi này!');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-        return;
-      }
-      
-      // Update the exam document itself
-      await updateDoc(doc(db, 'exams_bank', examId), {
-        distributedAt: serverTimestamp()
-      });
-      
-      // Also update the individual results for existing students
-      const batch = writeBatch(db);
-      snapshot.docs.forEach(docSnap => {
-        batch.update(docSnap.ref, { 
-          isDistributed: true, 
-          distributedAt: serverTimestamp(),
-          scratched: false
-        });
-      });
-      
-      await batch.commit();
-      
-      setToastMessage('Đã phát bài thành công cho học sinh!');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-    } catch (error) {
-      console.error('Lỗi khi phát bài:', error);
-      alert('Không thể phát bài, vui lòng thử lại: ' + (error instanceof Error ? error.message : ''));
-    }
-  };
-
   const handleAiGenerate = async () => {
     const apiKey = await getGeminiApiKey();
     if (!apiKey) {
@@ -1062,9 +1023,9 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                           </button>
                           <button 
-                            onClick={() => handleDistributeExam(exam.id)}
+                            onClick={() => setViewingResultsExam(exam)}
                             className="p-2.5 bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white rounded-xl transition-all"
-                            title="Phát bài / Phát điểm"
+                            title="Phát bài (Chi tiết & Toàn bộ)"
                           >
                             <Send className="w-4 h-4" />
                           </button>
