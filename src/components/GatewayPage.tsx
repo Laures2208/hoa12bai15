@@ -547,9 +547,9 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                       <input
                         type="text"
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        onChange={(e) => setName(e.target.value.toUpperCase())}
                         placeholder="Nhập họ tên của bạn..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all uppercase"
                         required
                       />
                     </div>
@@ -581,10 +581,10 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                       <input
                         type="text"
                         value={studentClass}
-                        onChange={(e) => setStudentClass(e.target.value)}
+                        onChange={(e) => setStudentClass(e.target.value.toUpperCase())}
                         placeholder="Ví dụ: 12A1"
                         className={cn(
-                          "w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all",
+                          "w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all uppercase",
                           !grade && "opacity-50 cursor-not-allowed"
                         )}
                         required
