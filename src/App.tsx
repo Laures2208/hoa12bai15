@@ -65,6 +65,7 @@ import { fixLatex } from './utils/latexHelper';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Gatekeeper } from './components/Gatekeeper';
+import { ScratchCardModal } from './components/ScratchCardModal';
 import { AdminSettings } from './components/AdminSettings';
 import { ExamRoom, Exam } from './components/ExamRoom';
 import { NumericKeypad } from './components/NumericKeypad';
@@ -558,7 +559,7 @@ interface PreparedQuestion extends Question {
   shuffledOptions: { text: string; originalIndex: number }[];
 }
 
-const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' | 'exam-room' | 'gateway') => void, onOpenProfile: () => void }) => {
+const FinalExam = ({ setView, onOpenProfile, initialReviewData }: { setView: (v: 'main' | 'admin' | 'exam-room' | 'gateway') => void, onOpenProfile: () => void, initialReviewData?: any }) => {
   const [examStarted, setExamStarted] = useState(false);
   const [currentExam, setCurrentExam] = useState<Exam | null>(null);
   const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string, grade: '10' | '11' | '12' } | null>(() => {
@@ -593,6 +594,39 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
   const autoNextTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const answersRef = useRef(answers);
   const timeLeftRef = useRef(timeLeft);
+
+  useEffect(() => {
+    if (initialReviewData) {
+      const { result, examData } = initialReviewData;
+      setCurrentExam(examData);
+      setScore(result.score);
+      setTotalPoints(result.totalPoints || 10);
+      
+      let finalQuestions = result.preparedQuestions;
+      let finalAnswers = result.answers || [];
+      
+      if (!finalQuestions && examData.questions) {
+        finalQuestions = examData.questions.map((q: any) => {
+          const optionsWithIndices = (q.options || []).map((opt: string, idx: number) => ({ text: opt, originalIndex: idx }));
+          return {
+            ...q,
+            shuffledOptions: optionsWithIndices
+          };
+        });
+        
+        finalAnswers = finalAnswers.map((a: any) => ({
+          ...a,
+          questionId: typeof a.questionId === 'string' ? a.questionId.split('_')[0] : a.questionId
+        }));
+      }
+      
+      setPreparedQuestions(finalQuestions || []);
+      setAnswers(finalAnswers);
+      setQuizFinished(true);
+      setShowReview(true);
+      setExamStarted(false);
+    }
+  }, [initialReviewData]);
 
   useEffect(() => {
     let unsubscribe: () => void;
@@ -779,7 +813,8 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
           timeRemaining: finalTimeLeft,
           timeSpent: timeSpent,
           createdAt: serverTimestamp(),
-          answers: finalAnswers
+          answers: finalAnswers,
+          preparedQuestions: preparedQuestions
         });
         
         console.log('Results submitted successfully');
@@ -852,36 +887,14 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
         localStorage.setItem(progressKey, JSON.stringify(progress));
       };
 
-      const saveToFirestore = () => {
-        const progress = {
-          preparedQuestions,
-          answers: answersRef.current,
-          timeLeft: timeLeftRef.current,
-          currentStep,
-          exitCount,
-          forceSubmit: isLimited ? exitCount > 2 : false
-        };
-        setDoc(doc(db, 'exam_progress', progressKey), {
-          ...progress,
-          examId: currentExam.id,
-          studentName: studentInfo.name,
-          studentClass: studentInfo.studentClass,
-          updatedAt: serverTimestamp()
-        }).catch(err => console.error("Error auto-saving progress to Firestore:", err));
-      };
-
       // Save immediately when answers or currentStep changes
       saveProgress();
       
-      // Also save periodically every 5 seconds to keep timeLeft relatively accurate
+      // Also save periodically every 5 seconds to keep timeLeft relatively accurate (localStorage only)
       const interval = setInterval(saveProgress, 5000);
-      
-      // Save to Firestore every 5 seconds
-      const firestoreInterval = setInterval(saveToFirestore, 5000);
       
       return () => {
         clearInterval(interval);
-        clearInterval(firestoreInterval);
       };
     }
   }, [answers, currentStep, examStarted, currentExam, quizFinished, studentInfo, preparedQuestions, exitCount]);
@@ -1240,10 +1253,12 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
       <section className="py-24 px-4 max-w-4xl mx-auto">
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Xem lại bài làm</h2>
-          <div className="text-2xl font-black text-teal-600 dark:text-teal-400">{score}/{totalPoints}</div>
+          {currentExam?.showScore !== false && (
+            <div className="text-2xl font-black text-teal-600 dark:text-teal-400">{score}/{totalPoints}</div>
+          )}
         </div>
 
-        {currentExam && <Leaderboard examId={currentExam.id} />}
+        {currentExam && currentExam.showScore !== false && <Leaderboard examId={currentExam.id} />}
         
         {(!showAnswers || currentExam?.allowReview === false) ? (
           <div className="flex flex-col items-center justify-center p-8 bg-amber-500/10 border border-amber-500/20 rounded-2xl gap-4">
@@ -1743,15 +1758,36 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
             <div className="w-24 h-24 bg-teal-500/10 dark:bg-teal-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <Trophy className="w-12 h-12 text-teal-600 dark:text-teal-500" />
             </div>
-            <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Kết thúc bài thi</h3>
-            <p className="text-slate-600 dark:text-slate-400 mb-8">Chúc mừng {studentInfo?.name} đã hoàn thành bài thi.</p>
-            <div className="text-5xl font-black text-teal-600 dark:text-teal-400 mb-12">{score}/{totalPoints}</div>
+            
+            {currentExam?.showScore === false ? (
+              <>
+                <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Hoàn thành bài thi!</h3>
+                <p className="text-slate-600 dark:text-slate-400 mb-8">Chúc mừng {studentInfo?.name} đã hoàn thành bài thi.</p>
+                
+                <div className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 max-w-2xl mx-auto mb-12">
+                  <CheckCircle2 className="w-16 h-16 text-teal-500 mx-auto mb-4" />
+                  <p className="text-lg font-bold text-slate-800 dark:text-white mb-2">
+                    Bài làm của bạn đã được ghi nhận.
+                  </p>
+                  <p className="text-slate-500 dark:text-slate-400">
+                    Điểm số hiện đang được ẩn đi bởi giáo viên.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Kết thúc bài thi</h3>
+                <p className="text-slate-600 dark:text-slate-400 mb-8">Chúc mừng {studentInfo?.name} đã hoàn thành bài thi.</p>
+                <div className="text-5xl font-black text-teal-600 dark:text-teal-400 mb-12">{score}/{totalPoints}</div>
+              </>
+            )}
+
             <div className="flex flex-col gap-4">
               <p className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-5 h-5" />
                 Kết quả đã được tự động lưu lại!
               </p>
-              {allowReview && (
+              {allowReview && currentExam?.showScore !== false && (
                 <button 
                   onClick={() => setShowReview(true)}
                   className="px-10 py-4 bg-teal-500 text-white font-bold rounded-2xl hover:bg-teal-600 transition-colors mx-auto"
@@ -1761,13 +1797,13 @@ const FinalExam = ({ setView, onOpenProfile }: { setView: (v: 'main' | 'admin' |
               )}
               <button 
                 onClick={() => setView('main')}
-                className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-sm transition-colors"
+                className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-sm transition-colors mt-4"
               >
                 Về trang chủ
               </button>
             </div>
             
-            {currentExam && <Leaderboard examId={currentExam.id} />}
+            {currentExam && currentExam.showScore !== false && <Leaderboard examId={currentExam.id} />}
           </div>
         )}
       </div>
@@ -2323,7 +2359,9 @@ const AdminPortal = () => {
                               const parsedAnswers = res.answers || [];
                               return parsedAnswers.map((ans: any, idx: number) => {
                                 const exam = exams.find(e => e.id === res.examId);
-                                const question = exam?.questions?.find((q: any) => q.id === ans.questionId);
+                                const baseQuestions = res.preparedQuestions || exam?.questions || [];
+                                const qId = typeof ans.questionId === 'string' ? ans.questionId.split('_')[0] : ans.questionId;
+                                const question = baseQuestions.find((q: any) => q.id === ans.questionId || q.id === qId);
                                 if (!question) return null;
                                 return (
                                   <div key={`${res.id}_ans_${idx}`} className={cn(
@@ -2981,6 +3019,8 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
   const [latestAnnouncement, setLatestAnnouncement] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showAnnouncementToast, setShowAnnouncementToast] = useState(false);
+  const [pendingScratchResult, setPendingScratchResult] = useState<any>(null);
+  const [reviewData, setReviewData] = useState<any>(null);
 
   useEffect(() => {
     if (view === 'announcements') {
@@ -3027,6 +3067,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
     let unsubscribeConfig: () => void;
     let unsubscribeStudent: () => void;
     let unsubscribeAnnouncements: () => void;
+    let unsubscribeScratch: () => void;
     
     const setupListener = async () => {
       const settingsRef = doc(db, 'admin', 'settings');
@@ -3059,6 +3100,22 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
           const info = JSON.parse(savedSession);
           setStudentInfo(info);
           const sessionId = `${info.name}_${info.studentClass}`.replace(/\s+/g, '_');
+
+          // Listen pending scratches
+          const scratchQuery = query(
+            collection(db, 'results'),
+            where('studentName', '==', info.name),
+            where('studentClass', '==', info.studentClass),
+            where('isDistributed', '==', true)
+          );
+          unsubscribeScratch = onSnapshot(scratchQuery, (snapshot) => {
+            const pending = snapshot.docs.find(d => d.data().scratched !== true);
+            if (pending) {
+              setPendingScratchResult({ id: pending.id, ...pending.data() });
+            } else {
+              setPendingScratchResult(null);
+            }
+          });
 
           // Listen for all announcements to count unread ones
           const qAnnouncements = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
@@ -3143,6 +3200,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
       if (unsubscribeConfig) unsubscribeConfig();
       if (unsubscribeStudent) unsubscribeStudent();
       if (unsubscribeAnnouncements) unsubscribeAnnouncements();
+      if (unsubscribeScratch) unsubscribeScratch();
     };
   }, []);
 
@@ -3366,11 +3424,24 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.5 }}
             >
-              <FinalExam setView={setView} onOpenProfile={() => setShowProfile(true)} />
+              <FinalExam setView={setView} onOpenProfile={() => setShowProfile(true)} initialReviewData={reviewData} />
             </motion.div>
           )}
         </AnimatePresence>
       </main>
+
+      <AnimatePresence>
+        {pendingScratchResult && view !== 'admin' && (
+          <ScratchCardModal
+            result={pendingScratchResult}
+            onClose={() => setPendingScratchResult(null)}
+            onViewReview={(examData) => {
+              setReviewData({ result: pendingScratchResult, examData });
+              setView('exam-room');
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       <footer className="py-12 border-t border-slate-200 dark:border-slate-800 text-center">
         <div className="max-w-7xl mx-auto px-4">

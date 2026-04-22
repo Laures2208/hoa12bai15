@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, Send, HelpCircle, Image as ImageIcon } from 'lucide-react';
+import { Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, Send, HelpCircle, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -37,6 +37,7 @@ interface Exam {
   category?: string;
   showBackgroundEffect?: boolean;
   backgroundEffectType?: string;
+  showScore?: boolean;
 }
 
 export const StudentExamRoom: React.FC = () => {
@@ -270,16 +271,33 @@ export const StudentExamRoom: React.FC = () => {
 
         <main className="max-w-4xl mx-auto py-12 px-4">
           <div className="mb-12 text-center">
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Điểm số của bạn</h2>
-            <div className="text-6xl md:text-8xl font-black text-teal-400 drop-shadow-[0_0_30px_rgba(45,212,191,0.5)]">
-              {score}<span className="text-3xl md:text-5xl text-slate-500">/{totalPoints}</span>
-            </div>
-            <p className="mt-4 text-slate-400 text-lg">
+            {exam.showScore === false ? (
+              <>
+                <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Hoàn thành bài thi!</h2>
+                <div className="bg-slate-800/50 border border-slate-700 rounded-3xl p-8 max-w-2xl mx-auto mt-8">
+                  <CheckCircle2 className="w-20 h-20 text-teal-500 mx-auto mb-6" />
+                  <p className="text-xl text-slate-300">
+                    Bài làm của bạn đã được ghi nhận.
+                  </p>
+                  <p className="text-slate-400 mt-2">
+                    Điểm số hiện đang được ẩn đi bởi giáo viên.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Điểm số của bạn</h2>
+                <div className="text-6xl md:text-8xl font-black text-teal-400 drop-shadow-[0_0_30px_rgba(45,212,191,0.5)]">
+                  {score}<span className="text-3xl md:text-5xl text-slate-500">/{totalPoints}</span>
+                </div>
+              </>
+            )}
+            <p className="mt-8 text-slate-400 text-lg">
               Thời gian làm bài: <span className="font-bold text-teal-400">{formatTime((exam.timeLimit * 60) - timeLeft)}</span>
             </p>
           </div>
 
-          <Leaderboard examId={exam.id} />
+          {exam.showScore !== false && <Leaderboard examId={exam.id} />}
 
           <div className="flex justify-center mt-12">
             <button 

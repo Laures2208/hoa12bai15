@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, query, onSnapshot, addDoc, updateDoc, serverTimestamp, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, updateDoc, serverTimestamp, orderBy, deleteDoc, doc, writeBatch, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { auth } from '../firebase';
 
@@ -83,7 +83,9 @@ import {
   Unlock,
   Eye,
   EyeOff,
-  Trophy
+  Trophy,
+  BarChart2,
+  Send
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { AdvancedWordProcessor } from './AdvancedWordProcessor';
@@ -121,6 +123,7 @@ export const AdminDashboard: React.FC = () => {
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [shuffleAnswers, setShuffleAnswers] = useState(false);
   const [allowReview, setAllowReview] = useState(true);
+  const [showScore, setShowScore] = useState(true);
   const [showBackgroundEffect, setShowBackgroundEffect] = useState(true);
   const [backgroundEffectType, setBackgroundEffectType] = useState('classic');
   const [startTime, setStartTime] = useState('');
@@ -215,6 +218,64 @@ export const AdminDashboard: React.FC = () => {
         throw error;
       }
       console.error(error);
+    }
+  };
+
+  const handleToggleShowScore = async (examId: string, currentStatus: boolean | undefined) => {
+    try {
+      if (db) {
+        const newStatus = currentStatus === false ? true : false;
+        await updateDoc(doc(db, 'exams_bank', examId), {
+          showScore: newStatus
+        }).catch(err => handleFirestoreError(err, OperationType.UPDATE, 'exams_bank/' + examId));
+        setToastMessage(newStatus ? 'Đã cho phép xem điểm!' : 'Đã tắt xem điểm!');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
+        throw error;
+      }
+      console.error(error);
+    }
+  };
+
+  const handleDistributeExam = async (examId: string) => {
+    try {
+      if (!db) return;
+      const resultsQuery = query(collection(db, 'results'), where('examId', '==', examId));
+      const snapshot = await getDocs(resultsQuery);
+      
+      if (snapshot.empty) {
+        setToastMessage('Chưa có học sinh nào nộp bài thi này!');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        return;
+      }
+      
+      // Update the exam document itself
+      await updateDoc(doc(db, 'exams_bank', examId), {
+        distributedAt: serverTimestamp()
+      });
+      
+      // Also update the individual results for existing students
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(docSnap => {
+        batch.update(docSnap.ref, { 
+          isDistributed: true, 
+          distributedAt: serverTimestamp(),
+          scratched: false
+        });
+      });
+      
+      await batch.commit();
+      
+      setToastMessage('Đã phát bài thành công cho học sinh!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (error) {
+      console.error('Lỗi khi phát bài:', error);
+      alert('Không thể phát bài, vui lòng thử lại: ' + (error instanceof Error ? error.message : ''));
     }
   };
 
@@ -330,6 +391,7 @@ export const AdminDashboard: React.FC = () => {
         shuffleQuestions: shuffleQuestions,
         shuffleAnswers: shuffleAnswers,
         allowReview: allowReview,
+        showScore: showScore,
         showBackgroundEffect: showBackgroundEffect,
         backgroundEffectType: backgroundEffectType,
         startTime: startTime || null,
@@ -783,6 +845,21 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Xem điểm ngay</label>
+                    <div className="flex items-center h-[50px] px-2">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer"
+                          checked={showScore}
+                          onChange={e => setShowScore(e.target.checked)}
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-500"></div>
+                        <span className="ml-3 text-sm font-bold text-slate-300">{showScore ? 'Cho phép' : 'Ẩn điểm'}</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2">Hiệu ứng lơ lửng</label>
                     <div className="flex items-center h-[50px] px-2">
                       <label className="relative inline-flex items-center cursor-pointer">
@@ -902,23 +979,55 @@ export const AdminDashboard: React.FC = () => {
                     <motion.div
                       key={exam.id}
                       whileHover={{ scale: 1.02 }}
-                      className="bg-slate-900/50 border border-slate-800 rounded-[2rem] p-6 hover:border-teal-500/30 transition-all group"
+                      className="bg-slate-900/50 border border-slate-800 rounded-[2rem] p-6 hover:border-teal-500/30 transition-all group flex flex-col justify-between"
                     >
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-teal-500/10 rounded-2xl border border-teal-500/20">
-                          <BookOpen className="w-6 h-6 text-teal-400" />
+                      <div>
+                        <div className="flex justify-between items-center mb-4">
+                          <div className="p-3 bg-teal-500/10 rounded-2xl border border-teal-500/20">
+                            <BookOpen className="w-6 h-6 text-teal-400" />
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-600 uppercase text-right">
+                            {exam.createdAt?.toDate ? exam.createdAt.toDate().toLocaleDateString('vi-VN') : 'Mới tạo'}
+                          </div>
                         </div>
-                        <div className="flex gap-2 opacity-100 transition-opacity">
+
+                        <h3 className="text-lg font-bold text-white mb-3 line-clamp-2 leading-snug">
+                          {exam.grade && (
+                            <span className="inline-block px-2 py-0.5 bg-teal-500/20 text-teal-400 text-xs rounded-md mr-2 align-middle">
+                              Khối {exam.grade}
+                            </span>
+                          )}
+                          {exam.title}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-3 mb-6">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase bg-slate-800/50 px-2 py-1 rounded-lg">
+                            {exam.questions.length} Câu hỏi
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase bg-slate-800/50 px-2 py-1 rounded-lg flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            {exam.timeLimit} phút
+                          </span>
+                          {exam.isOpen === false && (
+                            <span className="px-2 py-1 text-[10px] font-bold rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-1 uppercase">
+                              <Lock className="w-3 h-3" />
+                              Đã đóng
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-4 mt-auto border-t border-slate-800/50">
+                        <div className="bg-slate-950/50 border border-slate-800/80 rounded-2xl p-2.5 flex flex-wrap justify-center items-center gap-2 shadow-inner">
                           <button 
                             onClick={() => setSelectedLeaderboardExam(exam.id)}
-                            className="p-2 bg-slate-800 text-slate-400 hover:text-yellow-400 rounded-xl transition-colors"
+                            className="p-2.5 bg-slate-800/80 text-slate-400 hover:text-yellow-400 hover:bg-slate-700 rounded-xl transition-all"
                             title="Xem Bảng xếp hạng"
                           >
                             <Trophy className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleToggleOpen(exam.id, exam.isOpen)}
-                            className={`p-2 rounded-xl transition-colors ${
+                            className={`p-2.5 rounded-xl transition-all ${
                               exam.isOpen === false 
                                 ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white' 
                                 : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white'
@@ -929,7 +1038,7 @@ export const AdminDashboard: React.FC = () => {
                           </button>
                           <button 
                             onClick={() => handleToggleReview(exam.id, exam.allowReview)}
-                            className={`p-2 rounded-xl transition-colors ${
+                            className={`p-2.5 rounded-xl transition-all ${
                               exam.allowReview === false 
                                 ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white' 
                                 : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white'
@@ -939,8 +1048,29 @@ export const AdminDashboard: React.FC = () => {
                             {exam.allowReview === false ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                           <button 
+                            onClick={() => handleToggleShowScore(exam.id, exam.showScore)}
+                            className={`p-2.5 rounded-xl transition-all ${
+                              exam.showScore === false 
+                                ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white' 
+                                : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white'
+                            }`}
+                            title={exam.showScore === false ? "Cho phép xem điểm" : "Tắt xem điểm"}
+                          >
+                            <div className="relative w-4 h-4">
+                              {exam.showScore === false ? <EyeOff className="w-full h-full" /> : <Eye className="w-full h-full" />}
+                              <span className="absolute -top-[6px] -right-[6px] text-[8px] font-black">A+</span>
+                            </div>
+                          </button>
+                          <button 
+                            onClick={() => handleDistributeExam(exam.id)}
+                            className="p-2.5 bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white rounded-xl transition-all"
+                            title="Phát bài / Phát điểm"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                          <button 
                             onClick={() => setViewingResultsExam(exam)}
-                            className="p-2 bg-slate-800 text-slate-400 hover:text-emerald-400 rounded-xl transition-colors"
+                            className="p-2.5 bg-slate-800/80 text-slate-400 hover:text-emerald-400 hover:bg-slate-700 rounded-xl transition-all"
                             title="Xem kết quả"
                           >
                             <Users className="w-4 h-4" />
@@ -958,53 +1088,24 @@ export const AdminDashboard: React.FC = () => {
                               setShuffleQuestions(exam.shuffleQuestions || false);
                               setShuffleAnswers(exam.shuffleAnswers || false);
                               setAllowReview(exam.allowReview !== undefined ? exam.allowReview : true);
+                              setShowScore(exam.showScore !== undefined ? exam.showScore : true);
                               setShowBackgroundEffect(exam.showBackgroundEffect !== undefined ? exam.showBackgroundEffect : true);
                               setBackgroundEffectType(exam.backgroundEffectType || 'classic');
                               setEditingExamId(exam.id);
                               setActiveTab('editor');
                             }}
-                            className="p-2 bg-slate-800 text-slate-400 hover:text-teal-400 rounded-xl transition-colors"
+                            className="p-2.5 bg-slate-800/80 text-slate-400 hover:text-teal-400 hover:bg-slate-700 rounded-xl transition-all"
                             title="Chỉnh sửa"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleDeleteExam(exam.id)}
-                            className="p-2 bg-slate-800 text-slate-400 hover:text-rose-400 rounded-xl transition-colors"
+                            className="p-2.5 bg-slate-800/80 text-slate-400 hover:text-rose-400 hover:bg-slate-700 rounded-xl transition-all"
                             title="Xóa"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
-                        </div>
-                      </div>
-
-                      <h3 className="text-lg font-bold text-white mb-2 line-clamp-1">
-                        {exam.grade && (
-                          <span className="inline-block px-2 py-0.5 bg-teal-500/20 text-teal-400 text-xs rounded-md mr-2 align-middle">
-                            Khối {exam.grade}
-                          </span>
-                        )}
-                        {exam.title}
-                      </h3>
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase">
-                          {exam.questions.length} Câu hỏi
-                        </span>
-                        {exam.isOpen === false && (
-                          <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20 flex items-center gap-1 uppercase">
-                            <Lock className="w-3 h-3" />
-                            Đã đóng
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="pt-4 border-t border-slate-800/50 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-slate-500 text-xs font-medium">
-                          <Clock className="w-3 h-3" />
-                          {exam.timeLimit} phút
-                        </div>
-                        <div className="text-[10px] font-bold text-slate-600 uppercase">
-                          {exam.createdAt?.toDate ? exam.createdAt.toDate().toLocaleDateString('vi-VN') : 'Mới tạo'}
                         </div>
                       </div>
                     </motion.div>

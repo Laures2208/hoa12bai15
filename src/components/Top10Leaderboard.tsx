@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Medal } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { db } from '../firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, getDocs } from 'firebase/firestore';
 
 export const Top10Leaderboard = () => {
   const [topUsers, setTopUsers] = useState<any[]>([]);
@@ -16,6 +16,14 @@ export const Top10Leaderboard = () => {
     
     const setupListener = async () => {
       try {
+        const examsRef = collection(db, 'exams_bank');
+        const examsSnapshot = await getDocs(examsRef);
+        const hideScoreExamIds = new Set(
+          examsSnapshot.docs
+            .filter(doc => doc.data().showScore === false)
+            .map(doc => doc.id)
+        );
+
         const resultsRef = collection(db, 'results');
         
         unsubscribe = onSnapshot(resultsRef, (snapshot) => {
@@ -23,6 +31,10 @@ export const Top10Leaderboard = () => {
           
           snapshot.docs.forEach(doc => {
             const data = doc.data();
+            
+            // Skip exams where score is hidden
+            if (hideScoreExamIds.has(data.examId)) return;
+
             const key = `${data.studentName}_${data.studentClass}`;
             
             if (!statsMap.has(key)) {

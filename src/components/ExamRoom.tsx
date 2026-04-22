@@ -43,6 +43,7 @@ export interface Exam {
   shuffleQuestions?: boolean;
   shuffleAnswers?: boolean;
   allowReview?: boolean;
+  showScore?: boolean;
   category?: string;
   matrix?: {
     multipleChoice: number;
@@ -340,17 +341,22 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
   };
 
   // Calculate Stats
-  const totalExams = results.length;
+  const visibleResults = results.filter(r => {
+    const exam = exams.find(e => e.id === r.examId);
+    return exam?.showScore !== false;
+  });
+  
+  const totalExams = visibleResults.length;
   
   // Normalize scores to 10 for fair comparison in stats
-  const normalizedScores = results.map(r => r.totalPoints ? (r.score / r.totalPoints) * 10 : r.score);
+  const normalizedScores = visibleResults.map(r => r.totalPoints ? (r.score / r.totalPoints) * 10 : r.score);
   
   const averageScore = totalExams > 0 ? (normalizedScores.reduce((acc, curr) => acc + curr, 0) / totalExams).toFixed(1) : '0.0';
   const highestScore = totalExams > 0 ? Math.max(...normalizedScores).toFixed(1) : '0.0';
   const lowestScore = totalExams > 0 ? Math.min(...normalizedScores).toFixed(1) : '0.0';
   
-  const totalCorrect = results.reduce((acc, curr) => acc + curr.correctAnswers, 0);
-  const totalQuestionsAnswered = results.reduce((acc, curr) => acc + curr.totalQuestions, 0);
+  const totalCorrect = visibleResults.reduce((acc, curr) => acc + curr.correctAnswers, 0);
+  const totalQuestionsAnswered = visibleResults.reduce((acc, curr) => acc + curr.totalQuestions, 0);
   const accuracy = totalQuestionsAnswered > 0 ? Math.round((totalCorrect / totalQuestionsAnswered) * 100) : 0;
 
   const formatDate = (timestamp: any) => {
@@ -466,7 +472,9 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                         <div className="text-sm font-bold text-white line-clamp-1">{exam?.title || 'Đề thi đã xóa'}</div>
                         <div className="text-xs text-slate-500 mt-1">{formatDate(result.createdAt)}</div>
                       </div>
-                      <div className="text-sm font-black text-teal-400 bg-teal-500/10 px-2 py-1 rounded-lg">{result.score}đ</div>
+                      <div className="text-sm font-black text-teal-400 bg-teal-500/10 px-2 py-1 rounded-lg">
+                        {exam?.showScore === false ? <Lock className="w-4 h-4 text-slate-400" /> : `${result.score}đ`}
+                      </div>
                     </div>
                   );
                 })}
@@ -1073,52 +1081,64 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
                 
                 {/* Body (Leaderboard) */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-[#0f172a]">
-                  <h3 className="text-lg font-bold text-teal-400 mb-6 flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-yellow-500" />
-                    Bảng Xếp Hạng Top 10
-                  </h3>
-                  <Leaderboard examId={selectedExamForRoom.id} />
+                  {selectedExamForRoom.showScore !== false ? (
+                    <>
+                      <h3 className="text-lg font-bold text-teal-400 mb-6 flex items-center gap-2">
+                        <Trophy className="w-5 h-5 text-yellow-500" />
+                        Bảng Xếp Hạng Top 10
+                      </h3>
+                      <Leaderboard examId={selectedExamForRoom.id} />
 
-                  {(() => {
-                    const studentAttempts = results
-                      .filter(r => r.examId === selectedExamForRoom.id)
-                      .sort((a, b) => {
-                        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
-                        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
-                        return timeA - timeB;
-                      })
-                      .map((r, idx) => ({
-                        name: `Lần ${idx + 1}`,
-                        score: r.score,
-                        totalPoints: r.totalPoints || 10
-                      }));
+                      {(() => {
+                        const studentAttempts = results
+                          .filter(r => r.examId === selectedExamForRoom.id)
+                          .sort((a, b) => {
+                            const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+                            const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+                            return timeA - timeB;
+                          })
+                          .map((r, idx) => ({
+                            name: `Lần ${idx + 1}`,
+                            score: r.score,
+                            totalPoints: r.totalPoints || 10
+                          }));
 
-                    if (studentAttempts.length === 0) return null;
+                        if (studentAttempts.length === 0) return null;
 
-                    return (
-                      <div className="mt-8">
-                        <h3 className="text-lg font-bold text-teal-400 mb-4 flex items-center gap-2">
-                          <TrendingUp className="w-5 h-5 text-teal-500" />
-                          Biểu Đồ Kết Quả Cá Nhân
-                        </h3>
-                        <div className="h-48 w-full bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={studentAttempts} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                              <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickMargin={8} />
-                              <YAxis stroke="#94a3b8" fontSize={12} domain={[0, 'dataMax']} />
-                              <Tooltip 
-                                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }} 
-                                itemStyle={{ color: '#2dd4bf', fontWeight: 'bold' }}
-                                labelStyle={{ color: '#94a3b8', marginBottom: '4px' }}
-                              />
-                              <Line type="monotone" dataKey="score" stroke="#2dd4bf" strokeWidth={3} dot={{ r: 4, fill: '#1e293b', strokeWidth: 2, stroke: '#2dd4bf' }} activeDot={{ r: 6, fill: '#2dd4bf' }} name="Điểm" />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
+                        return (
+                          <div className="mt-8">
+                            <h3 className="text-lg font-bold text-teal-400 mb-4 flex items-center gap-2">
+                              <TrendingUp className="w-5 h-5 text-teal-500" />
+                              Biểu Đồ Kết Quả Cá Nhân
+                            </h3>
+                            <div className="h-48 w-full bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={studentAttempts} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickMargin={8} />
+                                  <YAxis stroke="#94a3b8" fontSize={12} domain={[0, 'dataMax']} />
+                                  <Tooltip 
+                                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }} 
+                                    itemStyle={{ color: '#2dd4bf', fontWeight: 'bold' }}
+                                    labelStyle={{ color: '#94a3b8', marginBottom: '4px' }}
+                                  />
+                                  <Line type="monotone" dataKey="score" stroke="#2dd4bf" strokeWidth={3} dot={{ r: 4, fill: '#1e293b', strokeWidth: 2, stroke: '#2dd4bf' }} activeDot={{ r: 6, fill: '#2dd4bf' }} name="Điểm" />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <div className="text-center py-10">
+                      <div className="bg-slate-800/50 rounded-3xl p-6 border border-slate-700/50 max-w-sm mx-auto">
+                        <Lock className="w-12 h-12 text-slate-500 mx-auto mb-4" />
+                        <h4 className="font-bold text-white mb-2">Điểm tự động bị ẩn</h4>
+                        <p className="text-sm text-slate-400">Giáo viên đã thiết lập tính năng không hiển thị điểm và bảng xếp hạng cho bài thi này.</p>
                       </div>
-                    );
-                  })()}
+                    </div>
+                  )}
                 </div>
                 
                 {/* Footer (Actions) */}
