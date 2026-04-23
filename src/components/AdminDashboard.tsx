@@ -99,7 +99,7 @@ import { getGeminiApiKey } from '../services/gemini';
 import { parseAIJSON, removeUndefined } from '../utils/jsonHelper';
 
 export const AdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'matrix' | 'editor' | 'history'>('matrix');
+  const [activeTab, setActiveTab] = useState<'matrix' | 'editor' | 'history'>('history');
   const [matrix, setMatrix] = useState({
     multipleChoice: 12,
     trueFalse: 3,
