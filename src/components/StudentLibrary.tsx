@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { NotificationFeed } from './NotificationFeed';
 import { cn } from '../lib/utils';
+import { GlobalBackground } from './ParticleBackground';
 
 interface Exam {
   id: string;
@@ -66,8 +67,10 @@ export const StudentLibrary: React.FC = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      {/* Mobile: Notifications at top */}
+    <div className="min-h-screen bg-[#0f172a] text-slate-300 font-sans selection:bg-teal-500/30">
+      <GlobalBackground />
+      <div className="max-w-6xl mx-auto p-6 relative z-10">
+        {/* Mobile: Notifications at top */}
       <div className="md:hidden mb-6">
         <NotificationFeed />
       </div>
@@ -158,6 +161,7 @@ export const StudentLibrary: React.FC = () => {
           <NotificationFeed />
         </div>
       )}
+      </div>
     </div>
   );
 };

@@ -3119,7 +3119,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
           const data = snapshot.data();
           setThemeConfig({
             theme: data.theme || 'dark-teal',
-            particles: data.showParticles ? 'electrons' : 'none'
+            particles: data.showParticles ? (data.particleType || 'electrons') : 'none'
           });
           setAntiCheat22(data.antiCheat ?? true);
         }
@@ -3263,9 +3263,10 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
   return (
     <div className={cn(
       "min-h-screen transition-colors duration-300 selection:bg-teal-500/30",
-      "text-slate-200",
+      "text-slate-200 relative",
       getThemeClasses()
     )}>
+      <GlobalBackground />
       {/* Navigation */}
       <nav className={cn(
         "fixed top-0 left-0 right-0 z-40 backdrop-blur-xl border-b transition-colors duration-300",
@@ -3498,6 +3499,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
 }
 
 import { BatterySaverProvider } from './context/BatterySaverContext';
+import { GlobalBackground } from './components/ParticleBackground';
 
 export default function App() {
   return (

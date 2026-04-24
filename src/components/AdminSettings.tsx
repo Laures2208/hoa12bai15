@@ -9,6 +9,7 @@ export const AdminSettings = () => {
   const [settings, setSettings] = useState({
     theme: 'dark-teal',
     showParticles: true,
+    particleType: 'electrons',
     antiCheat: true,
     examDuration: 50,
     allowReview: true,
@@ -120,13 +121,13 @@ export const AdminSettings = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-xl">
               <div>
-                <div className="font-bold text-white">Hiệu ứng Electrons</div>
-                <div className="text-xs text-slate-500">Hiển thị các hạt electron bay lơ lửng ở nền</div>
+                <div className="font-bold text-white">Hiệu ứng lơ lửng nền tảng</div>
+                <div className="text-xs text-slate-500">Hiển thị các hạt, bong bóng hoặc hoa rơi ở nền trang web</div>
               </div>
               <button
                 onClick={() => setSettings({ ...settings, showParticles: !settings.showParticles })}
                 className={cn(
-                  "w-12 h-6 rounded-full transition-colors relative",
+                  "w-12 h-6 rounded-full transition-colors relative flex-shrink-0",
                   settings.showParticles ? "bg-teal-500" : "bg-slate-700"
                 )}
               >
@@ -136,6 +137,28 @@ export const AdminSettings = () => {
                 )} />
               </button>
             </div>
+
+            {settings.showParticles && (
+              <div className="flex items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-xl">
+                 <div className="w-full">
+                  <div className="font-bold text-white mb-2">Loại hiệu ứng</div>
+                  <select
+                    value={settings.particleType || 'electrons'}
+                    onChange={(e) => setSettings({ ...settings, particleType: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-teal-500 transition-all"
+                  >
+                    <option value="classic">Cổ điển (+, .)</option>
+                    <option value="electrons">Điện tử (●)</option>
+                    <option value="snow">Tuyết rơi (❄)</option>
+                    <option value="cherry_blossoms">Hoa anh đào (🌸)</option>
+                    <option value="bubbles">Bong bóng (○)</option>
+                    <option value="hearts">Trái tim (❤️)</option>
+                    <option value="fireworks">Pháo hoa (✨)</option>
+                    <option value="autumn-leaves">Lá mùa thu (🍂)</option>
+                  </select>
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-xl">
               <div>

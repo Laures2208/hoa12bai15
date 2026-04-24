@@ -1,8 +1,29 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface ParticleProps {
   type?: string;
 }
+
+export const GlobalBackground = () => {
+  const [particleType, setParticleType] = useState('none');
+
+  useEffect(() => {
+    const configRef = doc(db, 'system_settings', 'config');
+    const unsubscribe = onSnapshot(configRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        setParticleType(data.showParticles ? (data.particleType || 'electrons') : 'none');
+      } else {
+        setParticleType('none');
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  return <ParticleBackground type={particleType} />;
+};
 
 export const ParticleBackground: React.FC<ParticleProps> = ({ type = 'electrons' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -192,8 +213,8 @@ export const ParticleBackground: React.FC<ParticleProps> = ({ type = 'electrons'
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.4 }}
+      className="fixed inset-0 pointer-events-none z-[50]"
+      style={{ opacity: 0.3 }}
     />
   );
 };
