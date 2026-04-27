@@ -11,7 +11,7 @@ interface UseAntiCheatOptions {
 export const useAntiCheat = ({
   isEnabled,
   maxViolations = 3,
-  maxAwayTimeMs = 5000,
+  maxAwayTimeMs = 3000,
   onViolation,
   onForceSubmit
 }: UseAntiCheatOptions) => {

@@ -63,6 +63,7 @@ import { GatewayPage } from './components/GatewayPage';
 import { ProfileModal } from './components/ProfileModal';
 import { fixLatex } from './utils/latexHelper';
 import { AdminDashboard } from './components/AdminDashboard';
+import { AdminResultsChart } from './components/AdminResultsChart';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Gatekeeper } from './components/Gatekeeper';
 import { ScratchCardModal } from './components/ScratchCardModal';
@@ -696,7 +697,7 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData }: { setView: (v:
   const { requestFullscreen, isAway, awayTimeLeft } = useAntiCheat({
     isEnabled: !!(examStarted && !quizFinished && currentExam?.antiCheat),
     maxViolations: 3,
-    maxAwayTimeMs: 5000,
+    maxAwayTimeMs: 3000,
     onViolation: (count, max) => {
       // We don't use alert here because it blocks the thread and stops the timer
       // The full screen warning will be shown instead
@@ -2232,6 +2233,7 @@ const AdminPortal = () => {
             </button>
           </div>
 
+      <AdminResultsChart results={results} />
       <div className={cn(
         "border rounded-3xl overflow-hidden shadow-2xl transition-colors duration-300",
         "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"

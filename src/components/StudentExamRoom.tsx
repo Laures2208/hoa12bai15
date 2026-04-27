@@ -58,7 +58,7 @@ export const StudentExamRoom: React.FC = () => {
   const { requestFullscreen, isAway, awayTimeLeft } = useAntiCheat({
     isEnabled: !loading && !!exam,
     maxViolations: 3,
-    maxAwayTimeMs: 5000,
+    maxAwayTimeMs: 3000,
     onViolation: (count, max) => {
       // We don't use alert here because it blocks the thread and stops the timer
       // The full screen warning will be shown instead
