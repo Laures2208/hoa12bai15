@@ -13,6 +13,8 @@ import { fixLatex } from '../utils/latexHelper';
 import { useAntiCheat } from '../hooks/useAntiCheat';
 import { Leaderboard } from './Leaderboard';
 import { useBatterySaver } from '../context/BatterySaverContext';
+import { VinacalCalculator } from './VinacalCalculator';
+import { Calculator } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -39,11 +41,25 @@ interface Exam {
   showScore?: boolean;
 }
 
+import { useFirebase } from '../FirebaseProvider';
+
 export const StudentExamRoom: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isBatterySaver } = useBatterySaver();
-  
+  const { user } = useFirebase();
+  const [studentInfo, setStudentInfo] = useState<{name: string, studentClass: string, grade: string}|null>(null);
+
+  useEffect(() => {
+    if (user) {
+      getDoc(doc(db, 'users', user.uid)).then(docSnap => {
+        if (docSnap.exists()) {
+          setStudentInfo(docSnap.data() as any);
+        }
+      });
+    }
+  }, [user]);
+
   const [exam, setExam] = useState<Exam | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +70,7 @@ export const StudentExamRoom: React.FC = () => {
   const [showReview, setShowReview] = useState(false);
   const [score, setScore] = useState(0);
   const [totalPoints, setTotalPoints] = useState(0);
+  const [showCalculator, setShowCalculator] = useState(false);
 
   const { requestFullscreen, isAway, awayTimeLeft } = useAntiCheat({
     isEnabled: !loading && !!exam,
@@ -167,12 +184,11 @@ export const StudentExamRoom: React.FC = () => {
       setScore(earnedPoints);
       setTotalPoints(possiblePoints);
       
-      const savedSession = localStorage.getItem('lkt_student_session');
-      if (savedSession) {
+      if (studentInfo) {
         try {
-          const { name, studentClass, grade } = JSON.parse(savedSession);
+          const { name, studentClass, grade } = studentInfo;
           const sessionId = `${name}_${studentClass}`.replace(/\s+/g, '_');
-          await updateDoc(doc(db, 'student_sessions', sessionId), { status: 'waiting' });
+          await updateDoc(doc(db, 'student_sessions', sessionId), { status: 'waiting' }).catch(() => {});
           
           // Save to results collection for Leaderboard
           await addDoc(collection(db, 'results'), {
@@ -340,6 +356,18 @@ export const StudentExamRoom: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+          <button 
+            onClick={() => setShowCalculator(!showCalculator)}
+            className={cn(
+              "p-2 rounded-xl transition-colors flex items-center gap-2 font-bold shadow-[0_0_15px_rgba(0,0,0,0.2)]",
+              showCalculator ? "bg-teal-500 text-slate-900" : "bg-slate-800 text-slate-400 hover:text-white"
+            )}
+            title="Máy Tính Vinacal"
+          >
+            <Calculator className="w-5 h-5" />
+            <span className="hidden sm:inline text-sm">Máy tính</span>
+          </button>
+
           <div className={cn(
             "flex items-center gap-2 px-4 py-2 rounded-xl font-bold font-mono text-lg border shadow-[0_0_15px_rgba(0,0,0,0.2)]",
             timeLeft < 300 
@@ -368,7 +396,13 @@ export const StudentExamRoom: React.FC = () => {
         />
       </div>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-8 flex flex-col">
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-8 flex flex-col relative">
+        {showCalculator && (
+          <VinacalCalculator 
+            onClose={() => setShowCalculator(false)} 
+            defaultPosition={{ x: 20, y: 0 }}
+          />
+        )}
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQuestionIndex}

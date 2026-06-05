@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
-import { BookOpen, Clock, Shield, Plus, X, Award, Target, TrendingUp, TrendingDown, Activity, PlayCircle, Calendar, Search, Pencil, Trash2, AlertTriangle, CheckCircle2, FileText, ChevronDown, ChevronUp, Lock, Unlock, Zap, Sun, RefreshCw, Trophy } from 'lucide-react';
+import { db, auth } from '../firebase';
+import { BookOpen, Clock, Shield, Plus, X, Award, Target, TrendingUp, TrendingDown, Activity, PlayCircle, Calendar, Search, Pencil, Trash2, AlertTriangle, CheckCircle2, FileText, ChevronDown, ChevronUp, Lock, Unlock, Zap, Sun, RefreshCw, Trophy, Settings } from 'lucide-react';
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -16,6 +16,7 @@ import { AdminLeaderboard } from './AdminLeaderboard';
 import { Leaderboard } from './Leaderboard';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useBatterySaver } from '../context/BatterySaverContext';
+import { StudentSettingsModal } from './StudentSettingsModal';
 
 export type QuestionType = 'multiple_choice' | 'true_false' | 'short_answer';
 
@@ -73,6 +74,7 @@ interface Result {
   totalQuestions: number;
   createdAt: any;
   canRetake?: boolean;
+  isDistributed?: boolean;
 }
 
 interface ExamRoomProps {
@@ -90,6 +92,7 @@ export const ExamRoom: React.FC<ExamRoomProps> = ({ isAdmin = false, studentInfo
   const [progresses, setProgresses] = useState<Record<string, any>>({});
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   
   const filteredExams = useMemo(() => {
     return exams.filter(exam => {
@@ -430,15 +433,24 @@ ${JSON.stringify(chunk)}`;
         <div className="w-full lg:w-80 flex-shrink-0 space-y-6">
           <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-3xl p-6 shadow-xl">
             {/* User Profile Info */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-blue-500/30">
-                {studentInfo?.name.charAt(0).toUpperCase() || 'S'}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-blue-500/30">
+                  {studentInfo?.name.charAt(0).toUpperCase() || 'S'}
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Học sinh</div>
+                  <div className="text-lg font-bold text-white leading-tight">{studentInfo?.name || 'Học sinh ẩn danh'}</div>
+                  <div className="text-sm font-bold text-blue-500">{studentInfo?.studentClass || 'Lớp ẩn danh'}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Học sinh</div>
-                <div className="text-lg font-bold text-white leading-tight">{studentInfo?.name || 'Học sinh ẩn danh'}</div>
-                <div className="text-sm font-bold text-blue-500">{studentInfo?.studentClass || 'Lớp ẩn danh'}</div>
-              </div>
+              <button
+                onClick={() => setShowSettingsModal(true)}
+                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-450 hover:text-teal-400 rounded-xl transition-all border border-slate-700/50 shadow-sm shrink-0"
+                title="Thông tin & mật khẩu tài khoản"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Controls */}
@@ -1289,6 +1301,12 @@ ${JSON.stringify(chunk)}`;
             </>
           )}
         </AnimatePresence>
+
+        <StudentSettingsModal 
+          isOpen={showSettingsModal} 
+          onClose={() => setShowSettingsModal(false)} 
+          uid={auth.currentUser?.uid || ''} 
+        />
 
       </div>
     </div>

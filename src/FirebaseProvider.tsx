@@ -16,17 +16,8 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setLoading(false);
         setError(null);
       } else {
-        try {
-          await signInAnonymously(auth);
-        } catch (err: any) {
-          console.error("Error signing in anonymously:", err);
-          if (err.code === 'auth/operation-not-allowed') {
-            setError("Anonymous authentication is not enabled.");
-          } else {
-            setError(err.message || "Failed to authenticate.");
-          }
-          setLoading(false);
-        }
+        setUser(null);
+        setLoading(false);
       }
     });
     return unsubscribe;

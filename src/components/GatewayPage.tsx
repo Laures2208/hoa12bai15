@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, Shield, ChevronRight, User, GraduationCap, Lock, Unlock, Zap, Database, LogOut, Bell } from 'lucide-react';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword } from 'firebase/auth';
+import { Clock, Shield, ChevronRight, User, GraduationCap, Lock, Unlock, Zap, Database, LogOut, Bell, Mail, Key, Phone, Calendar, CheckSquare, Square } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { collection, query, where, getDocs, doc, setDoc, onSnapshot, getDoc, deleteDoc, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -71,14 +72,21 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
   const [name, setName] = useState('');
   const [studentClass, setStudentClass] = useState('');
   const [grade, setGrade] = useState<'10' | '11' | '12' | ''>('');
-  const [isExiting, setIsExiting] = useState(false);
-  const [progress, setProgress] = useState({ examsCompleted: 0, totalScore: 0 });
-  const [isLoadingProgress, setIsLoadingProgress] = useState(false);
-  const [status, setStatus] = useState<'unregistered' | 'waiting' | 'approved' | 'blocked'>('unregistered');
-  const [passcode, setPasscode] = useState('');
-  const [isCheckingPasscode, setIsCheckingPasscode] = useState(false);
   const [recentAnnouncements, setRecentAnnouncements] = useState<any[]>([]);
   const [firestoreError, setFirestoreError] = useState<Error | null>(null);
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [dob, setDob] = useState('');
+  const [phone, setPhone] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
+  const [forgotName, setForgotName] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotPhone, setForgotPhone] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
 
   if (firestoreError) {
     throw firestoreError;
@@ -109,316 +117,233 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
     return () => clearInterval(timer);
   }, []);
 
-  // Check local storage for existing session
-  useEffect(() => {
-    let unsub: (() => void) | undefined;
-    let isMounted = true;
+  const getAuthPassword = (emailStr: string) => "StuAuth_" + emailStr.trim().toLowerCase().replace(/[^a-z0-9]/g, "_");
 
-    const checkSavedSession = async () => {
-      const savedSession = localStorage.getItem('lkt_student_session');
-      if (savedSession) {
-        const parsed = JSON.parse(savedSession);
-        const studentName = parsed.name || '';
-        const sClass = parsed.studentClass || '';
-        const sGrade = parsed.grade || '12';
-        setName(studentName);
-        setStudentClass(sClass);
-        setGrade(sGrade);
-        fetchProgress(studentName, sClass);
-        
-        const sessionId = `${studentName}_${sClass}`.replace(/\s+/g, '_');
-        
-        try {
-          const sessionDoc = await getDoc(doc(db, 'student_sessions', sessionId));
-          if (sessionDoc.exists()) {
-            const data = sessionDoc.data();
-            const currentStatus = data.status;
-            const lastActive = data.lastActive;
-            const isToday = lastActive && new Date(lastActive).toDateString() === new Date().toDateString();
-            
-            if (!isToday && currentStatus !== 'blocked') {
-              await deleteDoc(doc(db, 'student_sessions', sessionId));
-              if (isMounted) {
-                setStatus('unregistered');
-                localStorage.removeItem('lkt_student_session');
-              }
-              return;
-            }
-          }
-        } catch (err) {
-          handleFirestoreError(err, OperationType.GET, 'student_sessions/' + sessionId);
-        }
-
-        if (isMounted) {
-          unsub = onSnapshot(doc(db, 'student_sessions', sessionId), (docSnap) => {
-            if (docSnap.exists()) {
-              setStatus(docSnap.data().status as any);
-            } else {
-              setStatus('unregistered');
-              localStorage.removeItem('lkt_student_session');
-            }
-          }, (error) => handleFirestoreError(error, OperationType.GET, 'student_sessions/' + sessionId));
-        }
-      }
-    };
-
-    checkSavedSession();
-
-    return () => {
-      isMounted = false;
-      if (unsub) unsub();
-    };
-  }, []);
-
-  // Real-time status check when name or class changes
-  useEffect(() => {
-    const checkStatus = async () => {
-      if (!name.trim() || !studentClass.trim()) {
-        setStatus('unregistered');
-        return;
-      }
-      
-      const sessionId = `${name.trim()}_${studentClass.trim()}`.replace(/\s+/g, '_');
-      let sessionDoc;
-      try {
-        sessionDoc = await getDoc(doc(db, 'student_sessions', sessionId));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.GET, 'student_sessions/' + sessionId);
-        return;
-      }
-      
-      if (sessionDoc.exists()) {
-        const data = sessionDoc.data();
-        const currentStatus = data.status as any;
-        const lastActive = data.lastActive;
-        const isToday = lastActive && new Date(lastActive).toDateString() === new Date().toDateString();
-
-        if (!isToday && currentStatus !== 'blocked') {
-          try {
-            await deleteDoc(doc(db, 'student_sessions', sessionId));
-          } catch (err) {
-            handleFirestoreError(err, OperationType.DELETE, 'student_sessions/' + sessionId);
-          }
-          setStatus('unregistered');
-          localStorage.removeItem('lkt_student_session');
-          return;
-        }
-
-        setStatus(currentStatus);
-        
-        // If blocked, immediately update local storage if it matches
-        if (currentStatus === 'blocked') {
-          const savedSession = localStorage.getItem('lkt_student_session');
-          if (savedSession) {
-            const parsed = JSON.parse(savedSession);
-            if (parsed.name === name.trim() && parsed.studentClass === studentClass.trim()) {
-              // Keep it in localStorage so the "Bạn đã bị chặn" message stays, 
-              // but we ensure status is blocked
-            }
-          }
-        }
-      } else {
-        setStatus('unregistered');
-      }
-    };
-
-    const timeoutId = setTimeout(checkStatus, 500); // Debounce check
-    return () => clearTimeout(timeoutId);
-  }, [name, studentClass]);
-
-  const fetchProgress = async (studentName: string, sClass: string) => {
-    if (!studentName || !sClass) return;
-    setIsLoadingProgress(true);
-    try {
-      let completed = 0;
-      let score = 0;
-
-      const q = query(
-        collection(db, 'results'),
-        where('studentName', '==', studentName),
-        where('studentClass', '==', sClass)
-      );
-      
-      let snap;
-      try {
-        snap = await getDocs(q);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.LIST, 'results');
-        return;
-      }
-      
-      if (!snap.empty) {
-        completed += snap.size;
-        snap.forEach(doc => score += doc.data().score || 0);
-      }
-
-      setProgress({ examsCompleted: completed, totalScore: score });
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
-        throw error;
-      }
-      console.error("Error fetching progress:", error);
-    } finally {
-      setIsLoadingProgress(false);
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !studentClass.trim()) return;
+    setAuthError('');
+    setForgotSuccess('');
+    setAuthLoading(true);
 
-    const info = { name: name.trim(), studentClass: studentClass.trim() };
-    
-    const sessionId = `${info.name}_${info.studentClass}`.replace(/\s+/g, '_');
     try {
-      let sessionDoc;
-      try {
-        sessionDoc = await getDoc(doc(db, 'student_sessions', sessionId));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.GET, 'student_sessions/' + sessionId);
-        return;
-      }
-      
-      if (sessionDoc.exists() && sessionDoc.data().status === 'blocked') {
-        alert("Tài khoản này đã bị chặn bởi Giáo viên. Bạn không thể đăng ký lại.");
-        return;
+      if (!forgotName.trim() || !forgotEmail.trim() || !forgotPhone.trim()) {
+        throw new Error('Vui lòng nhập đầy đủ các trường thông tin.');
       }
 
-      const gatekeeperConfig = await checkAndResetGatekeeper();
-      const autoApprove = gatekeeperConfig ? gatekeeperConfig.autoApprove : true;
-      
-      const newStatus = autoApprove ? 'approved' : 'waiting';
-      
-      await setDoc(doc(db, 'student_sessions', sessionId), {
-        name: info.name,
-        studentClass: info.studentClass,
-        grade: grade,
-        status: newStatus,
-        lastActive: Date.now()
-      }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, 'student_sessions/' + sessionId));
+      // Query if student with this email exists
+      const qUsers = query(collection(db, 'users'), where('email', '==', forgotEmail.trim().toLowerCase()));
+      const snapshot = await getDocs(qUsers);
+      if (snapshot.empty) {
+        throw new Error('Không tìm thấy tài khoản học sinh ứng với email này.');
+      }
 
-      localStorage.setItem('lkt_student_session', JSON.stringify({ ...info, grade }));
-      setStatus(newStatus);
-      fetchProgress(info.name, info.studentClass);
-      
-      // Setup listener for status
-      onSnapshot(doc(db, 'student_sessions', sessionId), (docSnap) => {
-        if (docSnap.exists()) {
-          setStatus(docSnap.data().status as any);
-        } else {
-          setStatus('unregistered');
-          localStorage.removeItem('lkt_student_session');
-        }
-      }, (error) => {
-        try {
-          handleFirestoreError(error, OperationType.GET, 'student_sessions/' + sessionId);
-        } catch (e) {
-          setFirestoreError(e instanceof Error ? e : new Error(String(e)));
-        }
+      const userDoc = snapshot.docs[0];
+      const userData = userDoc.data();
+
+      // Check matching details helper
+      const isNameMatching = userData.name?.toUpperCase().trim() === forgotName.toUpperCase().trim();
+      const isPhoneMatching = userData.phone?.trim() === forgotPhone.trim();
+
+      if (!isNameMatching || !isPhoneMatching) {
+        throw new Error('Thông tin Họ tên hoặc Số điện thoại không khớp với hồ sơ đã đăng ký.');
+      }
+
+      // Safe save or replace the pending request
+      await setDoc(doc(db, 'password_reset_requests', userDoc.id), {
+        userId: userDoc.id,
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+        studentClass: userData.studentClass,
+        grade: userData.grade || '12',
+        password: userData.password || '',
+        createdAt: new Date().toISOString(),
+        status: 'pending'
       });
 
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
-        throw error;
-      }
-      console.error("Error registering:", error);
-      alert("Có lỗi xảy ra khi đăng ký.");
+      setForgotSuccess('Yêu cầu đổi mật khẩu đã được gửi đến Giáo viên thành công! Vui lòng liên hệ trực tiếp Giáo viên để nhận mật khẩu mới hoặc đợi phê duyệt.');
+    } catch (err: any) {
+      console.error("Forgot password submission error:", err);
+      setAuthError(err.message || 'Gửi yêu cầu thất bại. Vui lòng kiểm tra lại thông tin.');
+    } finally {
+      setAuthLoading(false);
     }
   };
 
-  const handlePasscodeSubmit = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode.length !== 4) return;
-    
-    const sessionId = `${name.trim()}_${studentClass.trim()}`.replace(/\s+/g, '_');
-    setIsCheckingPasscode(true);
+    setAuthError('');
+    setAuthLoading(true);
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
     try {
-      const gatekeeperConfig = await checkAndResetGatekeeper();
-      const correctPasscode = gatekeeperConfig ? gatekeeperConfig.passcode : '';
-      
-      if (passcode === correctPasscode) {
-      let sessionDoc;
-      try {
-        sessionDoc = await getDoc(doc(db, 'student_sessions', sessionId));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.GET, 'student_sessions/' + sessionId);
-        return;
-      }
-      
-      if (sessionDoc.exists() && sessionDoc.data().status === 'blocked') {
-          alert("Tài khoản này đã bị chặn bởi Giáo viên.");
-          return;
+      if (authMode === 'register') {
+        if (!name.trim() || !studentClass.trim() || !grade || !dob || !phone || !consent) {
+          throw new Error('Vui lòng điền đầy đủ thông tin và xác nhận đồng ý.');
+        }
+
+        // Check if user document already exists in users collection to prevent registering active users
+        const qUsers = query(collection(db, 'users'), where('email', '==', cleanEmail));
+        const snapshot = await getDocs(qUsers);
+        if (!snapshot.empty) {
+          throw { code: 'auth/email-already-in-use' };
         }
         
-        await setDoc(doc(db, 'student_sessions', sessionId), { 
-          status: 'approved',
-          lastActive: Date.now()
-        }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, 'student_sessions/' + sessionId));
-        setStatus('approved');
+        // 1. Create auth user or reuse/generate if orphan Auth account exists
+        const authPass = getAuthPassword(cleanEmail);
+        let finalAuthEmail = cleanEmail;
+        let userCredential;
+        try {
+          userCredential = await createUserWithEmailAndPassword(auth, finalAuthEmail, authPass);
+        } catch (createErr: any) {
+          if (createErr.code === 'auth/email-already-in-use') {
+            // Authentication account exists but user document in Firestore was deleted/removed by Admin
+            // Try resetting the Auth collision safely by registering under a unique mutated email
+            finalAuthEmail = cleanEmail.replace('@', `_reg_${Date.now()}@`);
+            userCredential = await createUserWithEmailAndPassword(auth, finalAuthEmail, authPass);
+          } else {
+            throw createErr;
+          }
+        }
+        
+        // 2. Save custom profile with actual clean password to users collection
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          name: name.trim().toUpperCase(),
+          studentClass: studentClass.trim().toUpperCase(),
+          grade,
+          dob,
+          phone,
+          email: cleanEmail,
+          authEmail: finalAuthEmail, // Keep track of the actual Firebase Auth email used
+          password: cleanPassword, // Save actual password for admin to see
+          createdAt: new Date().toISOString(),
+        });
+        
       } else {
-        alert('Mã Passcode không chính xác!');
+        // Login flow
+        // 1. Check if user document exists in users collection
+        const qUsers = query(collection(db, 'users'), where('email', '==', cleanEmail));
+        let matchedUserDoc: any = null;
+        try {
+          const snapshot = await getDocs(qUsers);
+          if (!snapshot.empty) {
+            matchedUserDoc = snapshot.docs[0];
+          }
+        } catch (e) {
+          console.error("Error querying user during login:", e);
+        }
+
+        if (matchedUserDoc) {
+          const userData = matchedUserDoc.data();
+          
+          if (userData.password !== undefined) {
+            // There is a stored password!
+            if (userData.password.trim() !== cleanPassword) {
+              throw new Error('Email hoặc mật khẩu không chính xác.');
+            }
+            
+            // Password matches stored plain text!
+            // Let's sign into Firebase Auth with the internal consistent auth password and resolved authEmail
+            const authPass = getAuthPassword(cleanEmail);
+            const resolvedAuthEmail = userData.authEmail || cleanEmail;
+            let userCredential;
+            try {
+              userCredential = await signInWithEmailAndPassword(auth, resolvedAuthEmail, authPass);
+              
+              // Ensure we record the authEmail in the document if it's missing (backwards compatibility)
+              if (!userData.authEmail) {
+                await setDoc(doc(db, 'users', matchedUserDoc.id), {
+                  authEmail: resolvedAuthEmail
+                }, { merge: true });
+              }
+
+              setName(userData.name);
+              setStudentClass(userData.studentClass);
+              setGrade(userData.grade || '12');
+            } catch (authErr: any) {
+              // Fallback: If transitioning user didn't have their auth password changed yet, try with entered password
+              if (authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
+                try {
+                  userCredential = await signInWithEmailAndPassword(auth, resolvedAuthEmail, cleanPassword);
+                  
+                  // Transition their auth password now!
+                  if (auth.currentUser) {
+                    await updatePassword(auth.currentUser, authPass);
+                  }
+
+                  await setDoc(doc(db, 'users', matchedUserDoc.id), {
+                    authEmail: resolvedAuthEmail
+                  }, { merge: true });
+                  
+                  setName(userData.name);
+                  setStudentClass(userData.studentClass);
+                  setGrade(userData.grade || '12');
+                } catch (failErr) {
+                  throw authErr;
+                }
+              } else {
+                throw authErr;
+              }
+            }
+          } else {
+            // Document has no plain password recorded (old system user)
+            // Attempt standard FirebaseAuth login with entered password
+            const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+            
+            // On success, save the password to Firestore user document and transition FirebaseAuth password
+            const authPass = getAuthPassword(cleanEmail);
+            try {
+              await updatePassword(userCredential.user, authPass);
+            } catch (err) {
+              console.warn("Could not transition auth password:", err);
+            }
+            
+            await setDoc(doc(db, 'users', userCredential.user.uid), {
+              ...userData,
+              password: cleanPassword,
+              authEmail: cleanEmail
+            }, { merge: true });
+
+            setName(userData.name);
+            setStudentClass(userData.studentClass);
+            setGrade(userData.grade || '12');
+          }
+        } else {
+          // No custom profile doc found (could be Admin or unrecorded user)
+          // Attempt standard FirebaseAuth login using entered password
+          const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, cleanPassword);
+          
+          // Try to fetch custom profile now
+          const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setName(data.name);
+            setStudentClass(data.studentClass);
+            setGrade(data.grade || '12');
+          } else {
+            // Admin accounts might not have a student profile doc, which is fine
+          }
+        }
       }
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('FirestoreErrorInfo')) {
-        throw error;
+    } catch (err: any) {
+      if (!err.code?.startsWith('auth/')) {
+        console.error(err);
       }
-      console.error("Error checking passcode:", error);
+      if (err.code === 'auth/email-already-in-use') setAuthError('Email này đã được đăng ký. Vui lòng chuyển qua tab Đăng nhập.');
+      else if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.message === 'Email hoặc mật khẩu không chính xác.') setAuthError('Email hoặc mật khẩu không chính xác.');
+      else if (err.code === 'auth/operation-not-allowed') setAuthError('Phương thức đăng nhập bằng Email/Mật khẩu chưa được bật trên Firebase. Vui lòng bật trong Firebase Console.');
+      else setAuthError(err.message || 'Có lỗi xảy ra, vui lòng thử lại. ' + (err.code || ''));
     } finally {
-      setIsCheckingPasscode(false);
-      setPasscode('');
+      setAuthLoading(false);
     }
   };
-
-  const handleEnterLab = async () => {
-    const sessionId = `${name.trim()}_${studentClass.trim()}`.replace(/\s+/g, '_');
-    // Re-verify status one last time before entering
-    let sessionDoc;
-    try {
-      sessionDoc = await getDoc(doc(db, 'student_sessions', sessionId));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.GET, 'student_sessions/' + sessionId);
-      return;
-    }
-    
-    if (!sessionDoc.exists() || sessionDoc.data().status !== 'approved') {
-      const currentStatus = sessionDoc.exists() ? sessionDoc.data().status : 'unregistered';
-      setStatus(currentStatus as any);
-      if (currentStatus === 'blocked') {
-        alert("Tài khoản này đã bị chặn bởi Giáo viên. Bạn không thể vào phòng thí nghiệm.");
-      } else {
-        alert("Bạn chưa được duyệt để vào phòng thí nghiệm!");
-      }
-      return;
-    }
-
-    const data = sessionDoc.data();
-    const lastActive = data.lastActive;
-    const isToday = lastActive && new Date(lastActive).toDateString() === new Date().toDateString();
-
-    if (!isToday && data.status !== 'blocked') {
-      try {
-        await deleteDoc(doc(db, 'student_sessions', sessionId));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, 'student_sessions/' + sessionId);
-      }
-      setStatus('unregistered');
-      localStorage.removeItem('lkt_student_session');
-      alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng ký lại cho ngày hôm nay.");
-      return;
-    }
-
-    setIsExiting(true);
-    setTimeout(() => {
-      onEnter({ name: name.trim(), studentClass: studentClass.trim(), grade: grade as '10' | '11' | '12' });
-    }, 500); // 0.5s fade-out
-  };
-
-  const hasRegistered = status !== 'unregistered';
 
   return (
     <AnimatePresence>
-      {!isExiting && (
         <motion.div
+  
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -523,7 +448,7 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
               </motion.div>
             )}
 
-            <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div className="w-full max-w-md mx-auto mb-8">
               
               {/* Registration Card */}
               <motion.div
@@ -539,211 +464,272 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
                   <h2 className="text-2xl font-bold text-white">Xác thực danh tính</h2>
                 </div>
 
-                <form onSubmit={handleRegister} className="space-y-5">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Họ và Tên</label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value.toUpperCase())}
-                        placeholder="Nhập họ tên của bạn..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all uppercase"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Khối lớp</label>
-                    <div className="grid grid-cols-3 gap-3">
-                      {(['10', '11', '12'] as const).map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() => setGrade(g)}
-                          className={cn(
-                            "py-2 rounded-xl border font-bold transition-all",
-                            grade === g 
-                              ? "bg-teal-500/20 border-teal-500 text-teal-400" 
-                              : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700"
-                          )}
-                        >
-                          Khối {g}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Lớp</label>
-                    <div className="relative">
-                      <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                      <input
-                        type="text"
-                        value={studentClass}
-                        onChange={(e) => setStudentClass(e.target.value.toUpperCase())}
-                        placeholder="Ví dụ: 12A1"
-                        className={cn(
-                          "w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all uppercase",
-                          !grade && "opacity-50 cursor-not-allowed"
-                        )}
-                        required
-                        disabled={!grade}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      type="submit"
-                      className="flex-1 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-teal-500/25 flex items-center justify-center gap-2"
-                    >
-                      {hasRegistered ? 'Cập nhật thông tin' : 'Đăng ký truy cập'}
-                    </button>
-                    {hasRegistered && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          localStorage.removeItem('lkt_student_session');
-                          setName('');
-                          setStudentClass('');
-                          setGrade('');
-                          setProgress({ examsCompleted: 0, totalScore: 0 });
-                        }}
-                        className="px-4 py-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold rounded-xl transition-colors border border-rose-500/20 flex items-center justify-center gap-2"
-                        title="Đăng xuất"
-                      >
-                        <LogOut className="w-5 h-5" />
-                        <span className="hidden sm:inline">Đăng xuất</span>
-                      </button>
-                    )}
-                  </div>
-                </form>
-              </motion.div>
-
-              {/* Status & Progress Card */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="flex flex-col gap-6"
-              >
-                {/* Access Status */}
-                <div className={cn(
-                  "border rounded-2xl p-6 backdrop-blur-sm transition-all duration-500",
-                  status === 'approved' ? "bg-teal-900/20 border-teal-500/50 shadow-[0_0_20px_rgba(20,184,166,0.2)]" :
-                  status === 'waiting' ? "bg-amber-900/20 border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.2)]" :
-                  status === 'blocked' ? "bg-rose-900/20 border-rose-500/50 shadow-[0_0_20px_rgba(244,63,94,0.2)]" :
-                  "bg-slate-900/50 border-slate-800"
-                )}>
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "p-4 rounded-full",
-                      status === 'approved' ? "bg-teal-500/20 text-teal-400" :
-                      status === 'waiting' ? "bg-amber-500/20 text-amber-400" :
-                      status === 'blocked' ? "bg-rose-500/20 text-rose-400" :
-                      "bg-slate-800 text-slate-500"
-                    )}>
-                      {status === 'approved' ? <Unlock className="w-8 h-8" /> : <Lock className="w-8 h-8" />}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-white mb-1">Trạng thái truy cập</h3>
-                      <p className={cn("text-sm", 
-                        status === 'approved' ? "text-teal-400" :
-                        status === 'waiting' ? "text-amber-400" :
-                        status === 'blocked' ? "text-rose-400" :
-                        "text-slate-500"
-                      )}>
-                        {status === 'approved' ? 'Đã cấp quyền truy cập Lab' :
-                         status === 'waiting' ? 'Đang chờ giáo viên duyệt...' :
-                         status === 'blocked' ? 'Bạn đã bị chặn' :
-                         'Chưa xác thực danh tính'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {status === 'waiting' && (
-                    <div className="mt-4 pt-4 border-t border-amber-500/20">
-                      <p className="text-xs text-amber-500/80 mb-2">Vào nhanh bằng Passcode:</p>
-                      <form onSubmit={handlePasscodeSubmit} className="flex gap-2">
-                        <input 
-                          type="text" 
-                          maxLength={4}
-                          value={passcode}
-                          onChange={(e) => setPasscode(e.target.value.replace(/\D/g, ''))}
-                          placeholder="Nhập 4 số..."
-                          className="flex-1 bg-slate-950 border border-amber-500/30 rounded-lg py-2 px-3 text-white text-center tracking-widest font-mono focus:border-amber-500 outline-none"
-                        />
-                        <button 
-                          type="submit"
-                          disabled={isCheckingPasscode || passcode.length !== 4}
-                          className="px-4 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg disabled:opacity-50 transition-colors"
-                        >
-                          {isCheckingPasscode ? '...' : 'Vào'}
-                        </button>
-                      </form>
-                    </div>
-                  )}
-                </div>
-
-                {/* Progress Stats */}
-                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 flex-1 flex flex-col">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                      <Database className="w-5 h-5 text-teal-500" />
-                      Tiến trình học tập
-                    </h3>
-                    {isLoadingProgress && <span className="text-xs text-teal-500 animate-pulse">Đang đồng bộ...</span>}
-                  </div>
-                  
-                  {hasRegistered ? (
-                    <div className="grid grid-cols-2 gap-4 flex-1">
-                      <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-center items-center text-center">
-                        <span className="text-3xl font-black text-teal-400 mb-1">{progress.examsCompleted}</span>
-                        <span className="text-xs text-slate-500 uppercase tracking-wider">Bài thi đã nộp</span>
-                      </div>
-                      <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-center items-center text-center">
-                        <span className="text-3xl font-black text-emerald-400 mb-1">
-                          {progress.examsCompleted > 0 ? (progress.totalScore / progress.examsCompleted).toFixed(1) : "0.0"}
-                        </span>
-                        <span className="text-xs text-slate-500 uppercase tracking-wider">Điểm trung bình</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-600 text-sm text-center">
-                      <Zap className="w-8 h-8 mb-3 opacity-20" />
-                      <p>Đăng ký để xem tiến trình<br/>của bạn từ Firebase</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Enter Button */}
-                <button
-                  onClick={handleEnterLab}
-                  disabled={status !== 'approved'}
-                  className={cn(
-                    "w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all duration-300",
-                    status === 'approved' 
-                      ? "bg-gradient-to-r from-teal-600 to-emerald-600 text-white hover:from-teal-500 hover:to-emerald-500 shadow-[0_0_30px_rgba(20,184,166,0.4)] hover:scale-[1.02]" 
-                      : "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
-                  )}
-                >
-                  VÀO PHÒNG THI
-                  <ChevronRight className="w-6 h-6" />
-                </button>
-
-                {status !== 'unregistered' && (
+                <div className="flex bg-slate-950 border border-slate-800 p-1 rounded-xl mb-6">
                   <button
-                    onClick={() => {
-                      localStorage.removeItem('lkt_student_session');
-                      setStatus('unregistered');
-                      setName('');
-                      setStudentClass('');
-                      setGrade('12');
-                    }}
-                    className="w-full py-3 mt-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 bg-slate-800/50 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700/50"
+                    className={cn("flex-1 py-2 text-sm font-bold rounded-lg transition-all", (authMode === 'login' || authMode === 'forgot') ? "bg-teal-500/20 text-teal-400" : "text-slate-500 hover:text-slate-300")}
+                    onClick={() => { setAuthMode('login'); setAuthError(''); setForgotSuccess(''); }}
                   >
-                    Quay lại đăng ký
+                    Đăng nhập
                   </button>
+                  <button
+                    className={cn("flex-1 py-2 text-sm font-bold rounded-lg transition-all", authMode === 'register' ? "bg-teal-500/20 text-teal-400" : "text-slate-500 hover:text-slate-300")}
+                    onClick={() => { setAuthMode('register'); setAuthError(''); setForgotSuccess(''); }}
+                  >
+                    Đăng ký mới
+                  </button>
+                </div>
+
+                {authError && (
+                  <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm p-3 rounded-lg mb-6">
+                    {authError}
+                  </div>
+                )}
+
+                {authMode === 'forgot' ? (
+                  <form onSubmit={handleForgotSubmit} className="space-y-4 pr-2 custom-scrollbar">
+                    {forgotSuccess ? (
+                      <div className="space-y-4 text-center py-4">
+                        <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/30">
+                          <CheckSquare className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm font-semibold text-emerald-400 leading-relaxed">{forgotSuccess}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAuthMode('login');
+                            setAuthError('');
+                            setForgotSuccess('');
+                          }}
+                          className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-teal-400 text-sm font-bold rounded-xl transition-all border border-slate-700"
+                        >
+                          Quay lại Đăng nhập
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-xs text-slate-400 italic mb-2">
+                          Vui lòng nhập chính xác thông tin đăng ký của bạn để gửi yêu cầu đổi mật khẩu đến Giáo viên quản lý.
+                        </p>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-400 mb-2">Họ và Tên học sinh</label>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                            <input
+                              type="text"
+                              value={forgotName}
+                              onChange={(e) => setForgotName(e.target.value)}
+                              placeholder="NGUYỄN VĂN A"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all uppercase"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-slate-400 mb-2">Email đã đăng ký</label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                            <input
+                              type="email"
+                              value={forgotEmail}
+                              onChange={(e) => setForgotEmail(e.target.value)}
+                              placeholder="email@example.com"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-slate-400 mb-2">Số điện thoại</label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                            <input
+                              type="tel"
+                              value={forgotPhone}
+                              onChange={(e) => setForgotPhone(e.target.value)}
+                              placeholder="09..."
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAuthMode('login');
+                              setAuthError('');
+                            }}
+                            className="w-1/3 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition-all border border-slate-700"
+                          >
+                            Quay lại
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={authLoading}
+                            className="flex-1 py-3 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold rounded-xl transition-colors shadow-lg shadow-teal-500/25 flex items-center justify-center gap-2"
+                          >
+                            {authLoading ? 'Đang gửi...' : 'Gửi yêu cầu đổi mật khẩu'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </form>
+                ) : (
+                  <form onSubmit={handleAuth} className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                    {authMode === 'register' && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-400 mb-2">Họ và Tên</label>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                            <input
+                              type="text"
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              placeholder="Nguyễn Văn A"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all uppercase"
+                              required={authMode === 'register'}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">Khối lớp</label>
+                            <select
+                              value={grade}
+                              onChange={(e) => setGrade(e.target.value as any)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                              required={authMode === 'register'}
+                            >
+                              <option value="" disabled>Chọn khối...</option>
+                              <option value="10">Khối 10</option>
+                              <option value="11">Khối 11</option>
+                              <option value="12">Khối 12</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">Lớp</label>
+                            <div className="relative">
+                              <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                              <input
+                                type="text"
+                                value={studentClass}
+                                onChange={(e) => setStudentClass(e.target.value)}
+                                placeholder="12A1"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all uppercase"
+                                required={authMode === 'register'}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">Ngày sinh</label>
+                            <div className="relative">
+                              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                              <input
+                                type="date"
+                                value={dob}
+                                onChange={(e) => setDob(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                                required={authMode === 'register'}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">Số điện thoại</label>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                              <input
+                                type="tel"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                placeholder="09..."
+                                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                                required={authMode === 'register'}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-2">Email</label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="email@example.com"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-sm font-medium text-slate-400">Mật khẩu</label>
+                        {authMode === 'login' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAuthMode('forgot');
+                              setAuthError('');
+                              setForgotSuccess('');
+                              setForgotName('');
+                              setForgotEmail('');
+                              setForgotPhone('');
+                            }}
+                            className="text-xs text-teal-400 hover:text-teal-300 font-semibold transition-colors"
+                          >
+                            Quên mật khẩu?
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                        <input
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all"
+                          required
+                          minLength={6}
+                        />
+                      </div>
+                    </div>
+
+                    {authMode === 'register' && (
+                      <div 
+                        className="flex items-start gap-3 mt-4 cursor-pointer"
+                        onClick={() => setConsent(!consent)}
+                      >
+                        <div className="mt-1">
+                          {consent ? <CheckSquare className="w-5 h-5 text-teal-500" /> : <Square className="w-5 h-5 text-slate-500" />}
+                        </div>
+                        <p className="text-xs text-slate-400 leading-relaxed">
+                          Tôi xác nhận đăng ký tài khoản và cho phép hệ thống lưu trữ thông tin cá nhân (Họ tên, Lớp, Ngày sinh, Số điện thoại) để Giáo viên quản lý, cấp quyền truy cập.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="submit"
+                        disabled={authLoading}
+                        className="flex-1 py-3 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-bold rounded-xl transition-colors shadow-lg shadow-teal-500/25 flex items-center justify-center gap-2"
+                      >
+                        {authLoading ? 'Đang xử lý...' : (authMode === 'login' ? 'Đăng Nhập' : 'Đăng Ký Tài Khoản')}
+                      </button>
+                    </div>
+                  </form>
                 )}
               </motion.div>
             </div>
@@ -769,7 +755,6 @@ export const GatewayPage: React.FC<GatewayPageProps> = ({ onEnter, onAdminAccess
             </button>
           </footer>
         </motion.div>
-      )}
     </AnimatePresence>
   );
 };

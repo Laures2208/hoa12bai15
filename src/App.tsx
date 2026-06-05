@@ -46,13 +46,16 @@ import {
   ToggleRight,
   BookOpen,
   Bell,
-  HelpCircle
+  HelpCircle,
+  Calculator
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, updateDoc, setDoc, deleteDoc, addDoc, serverTimestamp, where, getDocs, limit } from 'firebase/firestore';
 import { db } from './firebase';
 import { Routes, Route } from 'react-router-dom';
+import { useFirebase } from './FirebaseProvider';
 import { StudentExamRoom } from './components/StudentExamRoom';
 import { StudentLibrary } from './components/StudentLibrary';
+import { VinacalCalculator } from './components/VinacalCalculator';
 import { useAntiCheat } from './hooks/useAntiCheat';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -65,7 +68,7 @@ import { fixLatex } from './utils/latexHelper';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminResultsChart } from './components/AdminResultsChart';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { Gatekeeper } from './components/Gatekeeper';
+import { AdminAccounts } from './components/AdminAccounts';
 import { ScratchCardModal } from './components/ScratchCardModal';
 import { AdminSettings } from './components/AdminSettings';
 import { ExamRoom, Exam } from './components/ExamRoom';
@@ -560,21 +563,16 @@ interface PreparedQuestion extends Question {
   shuffledOptions: { text: string; originalIndex: number }[];
 }
 
-const FinalExam = ({ setView, onOpenProfile, initialReviewData }: { setView: (v: 'main' | 'admin' | 'exam-room' | 'gateway') => void, onOpenProfile: () => void, initialReviewData?: any }) => {
+const FinalExam = ({ setView, onOpenProfile, initialReviewData, studentInfo }: { setView: (v: 'main' | 'admin' | 'exam-room' | 'gateway') => void, onOpenProfile: () => void, initialReviewData?: any, studentInfo: { name: string, studentClass: string, grade: '10' | '11' | '12' } | null }) => {
+  const { user } = useFirebase();
   const [examStarted, setExamStarted] = useState(false);
   const [currentExam, setCurrentExam] = useState<Exam | null>(null);
-  const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string, grade: '10' | '11' | '12' } | null>(() => {
-    const saved = localStorage.getItem('lkt_student_session');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return { name: parsed.name, studentClass: parsed.studentClass, grade: parsed.grade || '12' };
-    }
-    return null;
-  });
+
   const [preparedQuestions, setPreparedQuestions] = useState<any[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [quizFinished, setQuizFinished] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [unansweredQuestions, setUnansweredQuestions] = useState<number[]>([]);
   const [score, setScore] = useState(0);
@@ -1525,7 +1523,13 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData }: { setView: (v:
           </div>
         )}
         
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 md:p-12 shadow-2xl flex-grow">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 md:p-12 shadow-2xl flex-grow relative">
+          {showCalculator && (
+            <VinacalCalculator
+              onClose={() => setShowCalculator(false)}
+              defaultPosition={{ x: 20, y: 0 }}
+            />
+          )}
           {!quizFinished ? (
           <div>
             <div className="flex justify-between items-center mb-8">
@@ -1534,6 +1538,19 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData }: { setView: (v:
                 <span className="text-slate-500 dark:text-slate-400 text-xs">Thời gian: {currentExam?.timeLimit} phút</span>
               </div>
               <div className="flex items-center gap-6">
+                <button
+                  onClick={() => setShowCalculator(!showCalculator)}
+                  className={cn(
+                    "px-4 py-2 font-bold rounded-xl transition-colors border flex items-center gap-2 text-sm",
+                    showCalculator 
+                      ? "bg-teal-500 text-slate-900 border-teal-500" 
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700"
+                  )}
+                  title="Máy tính Vinacal"
+                >
+                  <Calculator className="w-4 h-4" />
+                  <span className="hidden sm:inline">Máy tính</span>
+                </button>
                 <button
                   onClick={handleSaveAndExit}
                   className="px-4 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold rounded-xl hover:bg-amber-500/20 transition-colors border border-amber-500/20 flex items-center gap-2 text-sm"
@@ -1909,7 +1926,7 @@ import { AdminTheory } from './components/AdminTheory';
 import { StudentTheory } from './components/StudentTheory';
 
 const AdminPortal = () => {
-  const [activeTab, setActiveTab] = useState<'results' | 'gatekeeper' | 'settings' | 'exams' | 'announcements' | 'theory'>('results');
+  const [activeTab, setActiveTab] = useState<'accounts' | 'settings' | 'exams' | 'announcements' | 'theory'>('accounts');
   const [results, setResults] = useState<any[]>([]);
   const [exams, setExams] = useState<any[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>('all');
@@ -2108,28 +2125,16 @@ const AdminPortal = () => {
 
       <div className="flex gap-4 mb-8 border-b border-slate-200 dark:border-slate-800 pb-4 overflow-x-auto">
         <button
-          onClick={() => setActiveTab('results')}
+          onClick={() => setActiveTab('accounts')}
           className={cn(
             "px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap flex items-center gap-2",
-            activeTab === 'results' 
+            activeTab === 'accounts' 
               ? "bg-teal-500 text-white shadow-lg shadow-teal-500/20" 
               : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
           )}
         >
-          <Table className="w-4 h-4" />
-          Kết quả thi
-        </button>
-        <button
-          onClick={() => setActiveTab('gatekeeper')}
-          className={cn(
-            "px-6 py-2 rounded-full font-bold transition-all whitespace-nowrap flex items-center gap-2",
-            activeTab === 'gatekeeper' 
-              ? "bg-teal-500 text-white shadow-lg shadow-teal-500/20" 
-              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-          )}
-        >
-          <ShieldCheck className="w-4 h-4" />
-          Cổng An Ninh
+          <Users className="w-4 h-4" />
+          Danh sách tài khoản
         </button>
         <button
           onClick={() => setActiveTab('settings')}
@@ -2199,355 +2204,11 @@ const AdminPortal = () => {
         </ErrorBoundary>
       )}
 
-      {activeTab === 'results' && (
-        <>
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex gap-4">
-              <select
-                value={filterGrade}
-                onChange={(e) => setFilterGrade(e.target.value as any)}
-                className="px-6 py-2 rounded-full font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 outline-none focus:border-teal-500"
-              >
-                <option value="all">Tất cả khối lớp</option>
-                <option value="10">Khối 10</option>
-                <option value="11">Khối 11</option>
-                <option value="12">Khối 12</option>
-              </select>
-              <select
-                value={selectedExamId}
-                onChange={(e) => setSelectedExamId(e.target.value)}
-                className="px-6 py-2 rounded-full font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 outline-none focus:border-teal-500"
-              >
-                <option value="all">Tất cả bài thi</option>
-                {exams.filter(e => filterGrade === 'all' || e.grade === filterGrade).map(exam => (
-                  <option key={exam.id} value={exam.id}>{exam.title}</option>
-                ))}
-              </select>
-            </div>
-            <button 
-              onClick={handleClearData}
-              className="px-4 py-2 bg-red-500/10 text-red-500 border border-red-500/30 rounded-lg hover:bg-red-500 hover:text-white transition-colors font-bold text-sm flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Xóa toàn bộ kết quả
-            </button>
-          </div>
-
-      <AdminResultsChart results={results} />
-      <div className={cn(
-        "border rounded-3xl overflow-hidden shadow-2xl transition-colors duration-300",
-        "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800"
-      )}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead className={cn(
-              "border-b transition-colors duration-300",
-              "bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800"
-            )}>
-              <tr>
-                <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs">Thí sinh</th>
-                <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs">Lớp</th>
-                <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs">Điểm số</th>
-                <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs">Thời gian làm bài</th>
-                <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs">Ngày nộp</th>
-                <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs">Thao tác</th>
-                <th className="px-6 py-4 text-teal-600 dark:text-teal-500 font-bold uppercase text-xs">Chi tiết</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {results.map((res) => (
-                <React.Fragment key={res.id}>
-                  <tr className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{res.studentName}</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{res.studentClass}</td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-xs font-bold",
-                        res.score >= ((res.totalPoints || 10) / 2) ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-red-500/20 text-red-600 dark:text-red-400"
-                      )}>
-                        {res.score}/{res.totalPoints || 10}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400 text-sm">
-                      {formatTimeSpent(res.timeSpent)}
-                    </td>
-                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-sm">
-                      {res.createdAt ? new Date(res.createdAt.toMillis ? res.createdAt.toMillis() : res.createdAt).toLocaleString('vi-VN') : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 flex gap-2">
-                      <button 
-                        onClick={async () => {
-                          const studentName = res.studentName?.trim();
-                          const studentClass = res.studentClass?.trim();
-                          if (!studentName || !studentClass) {
-                            alert('Lỗi: Không tìm thấy thông tin học sinh để chặn.');
-                            return;
-                          }
-
-                          if (window.confirm(`Bạn có chắc chắn muốn CHẶN học sinh ${studentName} (${studentClass})? Học sinh này sẽ bị out khỏi lớp ngay lập tức.`)) {
-                            try {
-                              const sessionId = `${studentName}_${studentClass}`.replace(/\s+/g, '_');
-                              console.log('Attempting to block student with sessionId:', sessionId);
-                              await updateDoc(doc(db, 'student_sessions', sessionId), { status: 'blocked' });
-                              alert('Đã chặn học sinh thành công!');
-                            } catch (error) {
-                              console.error('Lỗi khi chặn học sinh:', error);
-                              alert('Không tìm thấy phiên đăng nhập của học sinh này hoặc lỗi hệ thống.');
-                            }
-                          }
-                        }}
-                        className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg transition-colors"
-                        title="Chặn học sinh"
-                      >
-                        <Ban className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={async () => {
-                          const studentName = res.studentName?.trim();
-                          const studentClass = res.studentClass?.trim();
-                          if (!studentName || !studentClass) {
-                            alert('Lỗi: Không tìm thấy thông tin học sinh để xoá.');
-                            return;
-                          }
-
-                          if (window.confirm(`Bạn có chắc chắn muốn đuổi học sinh ${studentName} (${studentClass}) ra khỏi lớp?\n\nHành động này sẽ XOÁ TOÀN BỘ dữ liệu của học sinh này (điểm, bài đã làm, dữ liệu trên bảng xếp hạng, v.v.).\n\nKhông thể hoàn tác!`)) {
-                            try {
-                              const sessionId = `${studentName}_${studentClass}`.replace(/\s+/g, '_');
-                              
-                              // 1. Delete session
-                              try {
-                                await deleteDoc(doc(db, 'student_sessions', sessionId));
-                              } catch (e) {
-                                console.error('Lỗi khi xoá session:', e);
-                              }
-                              
-                              // 2. Delete all results for this student
-                              const q = query(
-                                collection(db, 'results'),
-                                where('studentName', '==', studentName),
-                                where('studentClass', '==', studentClass)
-                              );
-                              const snapshot = await getDocs(q);
-                              
-                              if (!snapshot.empty) {
-                                const { writeBatch } = await import('firebase/firestore');
-                                const batches = [];
-                                let currentBatch = writeBatch(db);
-                                let operationCount = 0;
-
-                                snapshot.forEach(docSnap => {
-                                  currentBatch.delete(docSnap.ref);
-                                  operationCount++;
-
-                                  if (operationCount === 500) {
-                                    batches.push(currentBatch.commit());
-                                    currentBatch = writeBatch(db);
-                                    operationCount = 0;
-                                  }
-                                });
-
-                                if (operationCount > 0) {
-                                  batches.push(currentBatch.commit());
-                                }
-
-                                await Promise.all(batches);
-                              }
-                              
-                              // 3. Delete from SQLite database
-                              try {
-                                await fetch(`/api/admin/students/${encodeURIComponent(studentName)}/${encodeURIComponent(studentClass)}`, {
-                                  method: 'DELETE'
-                                });
-                              } catch (err) {
-                                console.error("Error deleting from SQLite:", err);
-                              }
-                              
-                              alert(`Đã xoá học sinh ${studentName} và toàn bộ dữ liệu liên quan.`);
-                            } catch (error) {
-                              console.error('Lỗi khi xoá học sinh:', error);
-                              alert('Có lỗi xảy ra khi xoá dữ liệu học sinh.');
-                            }
-                          }
-                        }}
-                        className="p-2 bg-slate-800 text-slate-400 hover:bg-rose-500 hover:text-white rounded-lg transition-colors"
-                        title="Đuổi khỏi lớp và xoá dữ liệu"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button 
-                        onClick={() => setExpandedRow(expandedRow === res.id ? null : res.id)}
-                        className="text-teal-600 dark:text-teal-500 hover:text-teal-700 dark:hover:text-teal-400 text-sm font-bold flex items-center gap-1"
-                      >
-                        {expandedRow === res.id ? 'Đóng' : 'Xem chi tiết'}
-                        <ChevronDown className={cn("w-4 h-4 transition-transform", expandedRow === res.id && "rotate-180")} />
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedRow === res.id && (
-                    <tr className="bg-slate-50 dark:bg-slate-950/50">
-                      <td colSpan={6} className="px-6 py-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {(() => {
-                            try {
-                              const parsedAnswers = res.answers || [];
-                              return parsedAnswers.map((ans: any, idx: number) => {
-                                const exam = exams.find(e => e.id === res.examId);
-                                const baseQuestions = res.preparedQuestions || exam?.questions || [];
-                                const qId = typeof ans.questionId === 'string' ? ans.questionId.split('_')[0] : ans.questionId;
-                                const question = baseQuestions.find((q: any) => q.id === ans.questionId || q.id === qId);
-                                if (!question) return null;
-                                return (
-                                  <div key={`${res.id}_ans_${idx}`} className={cn(
-                                    "p-4 rounded-xl border",
-                                    ans.isCorrect ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"
-                                  )}>
-                                    <div className="flex justify-between items-start mb-2">
-                                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Câu {idx + 1} ({question.type === 'multiple_choice' ? 'TN' : question.type === 'true_false' ? 'Đ/S' : 'TLN'})</span>
-                                      {ans.isCorrect ? (
-                                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                      ) : (
-                                        <XCircle className="w-4 h-4 text-red-500" />
-                                      )}
-                                    </div>
-                                    <div className="text-sm font-medium text-slate-900 dark:text-white mb-3">
-                                      {question.imageUrl && (
-                                        <div className="mb-3 flex justify-center">
-                                          <img 
-                                            src={question.imageUrl} 
-                                            alt="Question" 
-                                            className="max-w-full h-auto rounded-xl shadow-md border border-slate-200 dark:border-slate-700/50"
-                                            referrerPolicy="no-referrer"
-                                          />
-                                        </div>
-                                      )}
-                                      <ReactMarkdown 
-                                        remarkPlugins={[remarkMath]} 
-                                        rehypePlugins={[rehypeKatex]}
-                                        components={{
-                                          img: ({ node, ...props }) => {
-                                            if (!props.src) return null;
-                                            return (
-                                              <img 
-                                                {...props} 
-                                                className="max-w-full h-auto rounded-xl my-3 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
-                                                referrerPolicy="no-referrer"
-                                              />
-                                            );
-                                          }
-                                        }}
-                                      >
-                                        {fixLatex((question.content || question.text || '').replace(/\[\[IMAGE_PLACEHOLDER(?:_\d+)?\]\]/g, ''))}
-                                      </ReactMarkdown>
-                                    </div>
-                                    
-                                    <div className="space-y-2">
-                                      {question.type === 'multiple_choice' && (
-                                        <div className="space-y-1">
-                                          <p className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1">
-                                            <span className="font-bold">Đã chọn:</span> 
-                                            <ReactMarkdown 
-                                              remarkPlugins={[remarkMath]} 
-                                              rehypePlugins={[rehypeKatex]}
-                                              components={{
-                                                img: ({ node, ...props }) => {
-                                                  if (!props.src) return null;
-                                                  return (
-                                                    <img 
-                                                      {...props} 
-                                                      className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
-                                                      referrerPolicy="no-referrer"
-                                                    />
-                                                  );
-                                                }
-                                              }}
-                                            >
-                                              {fixLatex(question.options?.[ans.selectedOriginalIndex] || '---')}
-                                            </ReactMarkdown>
-                                          </p>
-                                          {!ans.isCorrect && (
-                                            <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                                              <span className="font-bold">Đáp án đúng:</span>
-                                              <ReactMarkdown 
-                                                remarkPlugins={[remarkMath]} 
-                                                rehypePlugins={[rehypeKatex]}
-                                                components={{
-                                                  img: ({ node, ...props }) => {
-                                                    if (!props.src) return null;
-                                                    return (
-                                                      <img 
-                                                        {...props} 
-                                                        className="max-w-full h-auto rounded-xl my-2 shadow-md border border-slate-200 dark:border-slate-700/50 mx-auto block" 
-                                                        referrerPolicy="no-referrer"
-                                                      />
-                                                    );
-                                                  }
-                                                }}
-                                              >
-                                                {fixLatex(question.options?.[question.answer?.charCodeAt(0) - 65] || '---')}
-                                              </ReactMarkdown>
-                                            </p>
-                                          )}
-                                        </div>
-                                      )}
-
-                                      {question.type === 'true_false' && (
-                                        <div className="space-y-1">
-                                          {question.subQuestions?.map((sq: any, sIdx: number) => {
-                                            const subAns = ans.subAnswers?.[sIdx];
-                                            const isSubCorrect = subAns === sq.answer;
-                                            return (
-                                              <div key={sIdx} className="text-[10px] flex items-center gap-2">
-                                                <span className={cn(isSubCorrect ? "text-emerald-500" : "text-rose-500")}>
-                                                  {sq.id}) {subAns || '---'}
-                                                </span>
-                                                <span className="text-slate-400">| Đáp án: {sq.answer}</span>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-
-                                      {question.type === 'short_answer' && (
-                                        <div className="space-y-1">
-                                          <p className="text-xs text-slate-600 dark:text-slate-400">
-                                            <span className="font-bold">Đã nhập:</span> {ans.shortAnswer || '---'}
-                                          </p>
-                                          {!ans.isCorrect && (
-                                            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                                              <span className="font-bold">Đáp án đúng:</span> {question.answer}
-                                            </p>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              });
-                            } catch (e) {
-                              return <p className="text-red-500 dark:text-red-400 text-sm">Lỗi hiển thị chi tiết bài làm.</p>;
-                            }
-                          })()}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-              {results.length === 0 && !isLoading && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 dark:text-slate-400 italic">Chưa có kết quả nào.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      </>
+      {activeTab === 'accounts' && (
+        <ErrorBoundary>
+          <AdminAccounts />
+        </ErrorBoundary>
       )}
-
-      {activeTab === 'gatekeeper' && <Gatekeeper />}
       {activeTab === 'settings' && <AdminSettings />}
 
       {isChangingPassword && (
@@ -3026,28 +2687,12 @@ const LanguageSwitcher = () => {
 
 import { StudentAnnouncements } from './components/StudentAnnouncements';
 
-function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory' }) {
-  const [view, setView] = useState<'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory'>(() => {
-    if (initialView !== 'gateway') return initialView;
-    const saved = localStorage.getItem('lkt_student_session');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.grade === '10' || parsed.grade === '11') {
-        return 'theory';
-      }
-      return 'exam-room';
-    }
-    return 'gateway';
-  });
+function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory' | 'calculator' }) {
+  const { user } = useFirebase();
+  const [view, setView] = useState<'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory' | 'calculator'>(initialView);
   const [showProfile, setShowProfile] = useState(false);
-  const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string, grade: '10' | '11' | '12' } | null>(() => {
-    const saved = localStorage.getItem('lkt_student_session');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return { name: parsed.name, studentClass: parsed.studentClass, grade: parsed.grade || '12' };
-    }
-    return null;
-  });
+  const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string, grade: '10' | '11' | '12' } | null>(null);
+
   const [antiCheat22, setAntiCheat22] = useState(true);
   const [antiCheat45, setAntiCheat45] = useState(true);
   const [themeConfig, setThemeConfig] = useState({ theme: 'dark-teal', particles: 'electrons' });
@@ -3065,44 +2710,39 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
   }, [view, latestAnnouncement]);
 
   useEffect(() => {
-    const savedSession = localStorage.getItem('lkt_student_session');
-    if (!savedSession && view !== 'gateway' && view !== 'admin') {
-      setView('gateway');
-    } else if (savedSession && view !== 'gateway' && view !== 'admin') {
-      // Validate session
-      const parsed = JSON.parse(savedSession);
-      const sessionId = `${parsed.name}_${parsed.studentClass}`.replace(/\s+/g, '_');
-      getDoc(doc(db, 'student_sessions', sessionId)).then(sessionDoc => {
-        if (sessionDoc.exists()) {
-          const data = sessionDoc.data();
-          const lastActive = data.lastActive;
-          const isToday = lastActive && new Date(lastActive).toDateString() === new Date().toDateString();
-          if (!isToday && data.status !== 'blocked') {
-            deleteDoc(doc(db, 'student_sessions', sessionId));
-            localStorage.removeItem('lkt_student_session');
-            setStudentInfo(null);
-            setView('gateway');
-          } else if (data.status === 'blocked') {
-            // Let GatewayPage handle blocked status
-            setView('gateway');
+    if (user) {
+      getDoc(doc(db, 'users', user.uid)).then(docSnap => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setStudentInfo({
+            name: data.name,
+            studentClass: data.studentClass,
+            grade: data.grade || '12'
+          });
+          
+          if (view === 'gateway') {
+            if (data.grade === '10' || data.grade === '11') {
+              setView('theory');
+            } else {
+              setView('exam-room');
+            }
           }
-        } else {
-          localStorage.removeItem('lkt_student_session');
-          setStudentInfo(null);
-          setView('gateway');
         }
-      }).catch(err => {
-        console.error("Error validating session:", err);
+      }).catch(error => {
+        console.error("Error fetching user document:", error);
       });
+    } else {
+      setStudentInfo(null);
+      if (view !== 'admin' && view !== 'gateway') {
+        setView('gateway');
+      }
     }
-  }, [view]);
+  }, [user, view]);
 
   useEffect(() => {
     let unsubscribeSettings: () => void;
     let unsubscribeConfig: () => void;
-    let unsubscribeStudent: () => void;
     let unsubscribeAnnouncements: () => void;
-    let unsubscribeScratch: () => void;
     
     const setupListener = async () => {
       const settingsRef = doc(db, 'admin', 'settings');
@@ -3129,100 +2769,29 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
         console.error("Error in config snapshot:", error);
       });
 
-      const savedSession = localStorage.getItem('lkt_student_session');
-      if (savedSession) {
-        try {
-          const info = JSON.parse(savedSession);
-          setStudentInfo(info);
-          const sessionId = `${info.name}_${info.studentClass}`.replace(/\s+/g, '_');
+      // Listen for all announcements to count unread ones
+      const qAnnouncements = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+      unsubscribeAnnouncements = onSnapshot(qAnnouncements, (snapshot) => {
+        const lastSeenId = localStorage.getItem('lkt_last_seen_announcement');
+        let count = 0;
+        let latest: any = null;
 
-          // Listen pending scratches
-          const scratchQuery = query(
-            collection(db, 'results'),
-            where('studentName', '==', info.name),
-            where('studentClass', '==', info.studentClass),
-            where('isDistributed', '==', true)
-          );
-          unsubscribeScratch = onSnapshot(scratchQuery, (snapshot) => {
-            const pending = snapshot.docs.find(d => d.data().scratched !== true);
-            if (pending) {
-              setPendingScratchResult({ id: pending.id, ...pending.data() });
-            } else {
-              setPendingScratchResult(null);
-            }
-          });
-
-          // Listen for all announcements to count unread ones
-          const qAnnouncements = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
-          unsubscribeAnnouncements = onSnapshot(qAnnouncements, (snapshot) => {
-            const lastSeenId = localStorage.getItem('lkt_last_seen_announcement');
-            let count = 0;
-            let latest: any = null;
-
-            snapshot.forEach((doc) => {
-              const data = { id: doc.id, ...doc.data() };
-              if (!latest) latest = data;
-              if (data.id !== lastSeenId) {
-                count++;
-              }
-            });
-
-            setUnreadCount(count);
-            setLatestAnnouncement(latest);
-            
-            if (count > 0 && latest && latest.id !== lastSeenId) {
-              setShowAnnouncementToast(true);
-              setTimeout(() => setShowAnnouncementToast(false), 5000);
-            }
-          });
-          
-          const sessionDoc = await getDoc(doc(db, 'student_sessions', sessionId));
-          if (sessionDoc.exists()) {
-            const data = sessionDoc.data();
-            const lastActive = data.lastActive;
-            const isToday = lastActive && new Date(lastActive).toDateString() === new Date().toDateString();
-            
-            if (!isToday && data.status !== 'blocked') {
-              try {
-                await deleteDoc(doc(db, 'student_sessions', sessionId));
-              } catch (err) {
-                console.error("Error deleting old session:", err);
-              }
-              localStorage.removeItem('lkt_student_session');
-              setView('gateway');
-              return;
-            }
+        snapshot.forEach((doc) => {
+          const data = { id: doc.id, ...doc.data() };
+          if (!latest) latest = data;
+          if (data.id !== lastSeenId) {
+            count++;
           }
+        });
 
-          unsubscribeStudent = onSnapshot(doc(db, 'student_sessions', sessionId), (docSnap) => {
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              const status = data.status;
-              const lastActive = data.lastActive;
-              const isToday = lastActive && new Date(lastActive).toDateString() === new Date().toDateString();
-
-              if (!isToday && status !== 'blocked') {
-                setView('gateway');
-                return;
-              }
-
-              if (status === 'blocked') {
-                setView('gateway');
-                // Don't remove localStorage here so GatewayPage can show the "Bạn đã bị chặn" message
-                alert('Tài khoản của bạn đã bị chặn bởi Giáo viên. Bạn sẽ bị đưa ra khỏi lớp.');
-              } else if (status !== 'approved') {
-                setView('gateway');
-              }
-            } else {
-              // Only remove if the document is actually deleted
-              localStorage.removeItem('lkt_student_session');
-              setView('gateway');
-            }
-          });
-        } catch (e) {
-          console.error("Error parsing session:", e);
+        setUnreadCount(count);
+        setLatestAnnouncement(latest);
+        
+        if (count > 0 && latest && latest.id !== lastSeenId) {
+          setShowAnnouncementToast(true);
+          setTimeout(() => setShowAnnouncementToast(false), 5000);
         }
-      }
+      });
     };
     
     setupListener();
@@ -3233,19 +2802,54 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
     return () => {
       if (unsubscribeSettings) unsubscribeSettings();
       if (unsubscribeConfig) unsubscribeConfig();
-      if (unsubscribeStudent) unsubscribeStudent();
       if (unsubscribeAnnouncements) unsubscribeAnnouncements();
-      if (unsubscribeScratch) unsubscribeScratch();
     };
   }, []);
+
+  useEffect(() => {
+    let unsubscribeScratch: () => void;
+    let unsubscribeStudent: () => void;
+
+    if (studentInfo && user) {
+      // Listen pending scratches
+      const scratchQuery = query(
+        collection(db, 'results'),
+        where('studentName', '==', studentInfo.name),
+        where('studentClass', '==', studentInfo.studentClass),
+        where('isDistributed', '==', true)
+      );
+      unsubscribeScratch = onSnapshot(scratchQuery, (snapshot) => {
+        const pending = snapshot.docs.find(d => d.data().scratched !== true);
+        if (pending) {
+          setPendingScratchResult({ id: pending.id, ...pending.data() });
+        } else {
+          setPendingScratchResult(null);
+        }
+      });
+      
+      // Listen to student status to kick out if blocked
+      unsubscribeStudent = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.status === 'blocked') {
+            setView('gateway');
+            alert('Tài khoản của bạn đã bị chặn bởi Giáo viên. Bạn sẽ bị đưa ra khỏi lớp.');
+          }
+        }
+      });
+    }
+
+    return () => {
+      if (unsubscribeScratch) unsubscribeScratch();
+      if (unsubscribeStudent) unsubscribeStudent();
+    }
+  }, [studentInfo, view, user]);
 
   if (view === 'gateway') {
     return (
       <GatewayPage 
         onEnter={(info) => {
-          localStorage.setItem('lkt_student_session', JSON.stringify(info));
-          setStudentInfo(info);
-          setView('exam-room');
+          setView(info.grade === '10' || info.grade === '11' ? 'theory' : 'exam-room');
         }} 
         onAdminAccess={() => setView('admin')} 
       />
@@ -3299,6 +2903,17 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
                 Phòng thí nghiệm
               </button>
             )}
+            <button
+              onClick={() => setView('calculator')}
+              className={cn(
+                "text-xs md:text-sm font-bold transition-colors flex items-center gap-1 nav-energy-btn px-3 py-2 rounded-full border border-slate-700 hover:border-cyan-500/50",
+                view === 'calculator' ? "text-cyan-400 bg-cyan-500/10" : "text-slate-400 hover:text-cyan-400"
+              )}
+              title="Máy tính"
+            >
+              <Calculator className="w-4 h-4 md:hidden" />
+              <span className="hidden md:inline">Máy tính</span>
+            </button>
             <button 
               onClick={() => setView('theory')} 
               className={cn(
@@ -3334,7 +2949,10 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               Vào thi
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
+                const { getAuth, signOut } = await import('firebase/auth');
+                const auth = getAuth();
+                await signOut(auth);
                 localStorage.removeItem('lkt_student_session');
                 setView('gateway');
               }}
@@ -3425,6 +3043,28 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               </div>
               <StudentAnnouncements studentInfo={studentInfo || { name: '', studentClass: '', grade: '12' }} isAdmin={false} />
             </motion.div>
+          ) : view === 'calculator' ? (
+            <motion.div
+              key="calculator"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+              className="max-w-4xl mx-auto px-4 py-12"
+            >
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-12 h-12 bg-cyan-500/10 rounded-2xl flex items-center justify-center border border-cyan-500/20 shadow-[0_0_20px_rgba(34,211,238,0.15)]">
+                  <Calculator className="w-6 h-6 text-cyan-400" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-black text-white tracking-tight">Máy Tính</h1>
+                  <p className="text-slate-400">Máy tính Vinacal 680EX PLUS III</p>
+                </div>
+              </div>
+              <div className="flex justify-center">
+                <VinacalCalculator isStandalone defaultPosition={{ x: 0, y: 0 }} />
+              </div>
+            </motion.div>
           ) : view === 'theory' ? (
             <motion.div
               key="theory"
@@ -3463,7 +3103,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.5 }}
             >
-              <FinalExam setView={setView} onOpenProfile={() => setShowProfile(true)} initialReviewData={reviewData} />
+              <FinalExam setView={setView} onOpenProfile={() => setShowProfile(true)} initialReviewData={reviewData} studentInfo={studentInfo} />
             </motion.div>
           )}
         </AnimatePresence>

@@ -88,6 +88,12 @@ export const StudentTheory: React.FC<StudentTheoryProps> = ({ studentInfo }) => 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTheory, setSelectedTheory] = useState<Theory | null>(null);
   const [selectedGrade, setSelectedGrade] = useState<'10' | '11' | '12' | 'all'>(studentInfo?.grade || 'all');
+
+  useEffect(() => {
+    if (studentInfo?.grade) {
+      setSelectedGrade(studentInfo.grade);
+    }
+  }, [studentInfo?.grade]);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [firestoreError, setFirestoreError] = useState<Error | null>(null);

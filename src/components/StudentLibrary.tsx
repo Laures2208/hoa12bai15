@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Clock, Calendar, Book, PlayCircle, Loader2, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { motion } from 'motion/react';
 import { NotificationFeed } from './NotificationFeed';
 import { cn } from '../lib/utils';
 import { GlobalBackground } from './ParticleBackground';
+import { useFirebase } from '../FirebaseProvider';
 
 interface Exam {
   id: string;
@@ -16,13 +17,28 @@ interface Exam {
   type?: string;
   createdAt: any;
   questionCount?: number;
+  grade?: string;
 }
 
 export const StudentLibrary: React.FC = () => {
   const [exams, setExams] = useState<Exam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'library' | 'notifications'>('library');
+  const [studentInfo, setStudentInfo] = useState<any>(null);
+  const { user } = useFirebase();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      getDoc(doc(db, 'users', user.uid)).then((docSnap) => {
+        if (docSnap.exists()) {
+          setStudentInfo(docSnap.data());
+        }
+      }).catch((err) => {
+        console.error("Lỗi khi tải thông tin học sinh:", err);
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     const fetchExams = async () => {
@@ -47,6 +63,11 @@ export const StudentLibrary: React.FC = () => {
     fetchExams();
   }, []);
 
+  const filteredExams = exams.filter(exam => {
+    if (!studentInfo?.grade) return true;
+    return exam.grade === studentInfo.grade || !exam.grade;
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center">
@@ -56,7 +77,7 @@ export const StudentLibrary: React.FC = () => {
     );
   }
 
-  if (exams.length === 0) {
+  if (filteredExams.length === 0) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center bg-slate-900/50 rounded-3xl border border-slate-800 p-8 text-center">
         <Book className="w-16 h-16 text-slate-600 mb-4" />
@@ -103,7 +124,7 @@ export const StudentLibrary: React.FC = () => {
 
       {activeTab === 'library' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {exams.map((exam, index) => (
+          {filteredExams.map((exam, index) => (
             <motion.div
               key={exam.id}
               initial={{ opacity: 0, y: 20 }}
