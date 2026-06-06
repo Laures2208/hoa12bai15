@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Palette, Sparkles, ShieldAlert, Save, CheckCircle2, Moon, Sun, Monitor } from 'lucide-react';
+import { Palette, Sparkles, ShieldAlert, Save, CheckCircle2, Moon, Sun, Monitor, Eye, EyeOff } from 'lucide-react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { cn } from '../lib/utils';
@@ -17,6 +17,7 @@ export const AdminSettings = () => {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'system_settings', 'config'), (docSnap) => {
@@ -41,12 +42,12 @@ export const AdminSettings = () => {
     }
   };
 
-  const themes = [
+  const themes: { id: string; name: string; color: string; disabled?: boolean }[] = [
     { id: 'dark-teal', name: 'Dark Teal Glow', color: 'bg-teal-500' },
     { id: 'dark-blue', name: 'Deep Ocean', color: 'bg-blue-600' },
     { id: 'dark-purple', name: 'Royal Purple', color: 'bg-purple-600' },
     { id: 'dark-emerald', name: 'Emerald Forest', color: 'bg-emerald-600' },
-    { id: 'light', name: 'Light Mode (Coming Soon)', color: 'bg-slate-200', disabled: true }
+    { id: 'light', name: 'Giao diện Sáng (Light Mode)', color: 'bg-slate-200' }
   ];
 
   return (
@@ -219,13 +220,23 @@ export const AdminSettings = () => {
           </div>
           <div className="space-y-2">
             <label className="text-sm text-slate-400 font-medium">Gemini API Key (Dùng cho tính năng AI)</label>
-            <input 
-              type="password" 
-              value={settings.geminiApiKey || ''}
-              onChange={(e) => setSettings({ ...settings, geminiApiKey: e.target.value })}
-              placeholder="Nhập API Key của bạn..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-white focus:border-teal-500 outline-none transition-colors"
-            />
+            <div className="relative">
+              <input 
+                type={showApiKey ? "text" : "password"} 
+                value={settings.geminiApiKey || ''}
+                onChange={(e) => setSettings({ ...settings, geminiApiKey: e.target.value })}
+                placeholder="Nhập API Key của bạn..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-4 pr-12 text-white focus:border-teal-500 outline-none transition-colors font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors p-1"
+                title={showApiKey ? "Ẩn API Key" : "Hiển thị API Key"}
+              >
+                {showApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
         </div>
       </div>

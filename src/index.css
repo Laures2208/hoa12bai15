@@ -35,10 +35,10 @@ body {
 
 @layer base {
   :root {
-    --bg-main: #0a0f14;
-    --text-main: #e2e8f0;
-    --card-bg: rgba(15, 23, 42, 0.5);
-    --card-border: rgba(20, 184, 166, 0.2);
+    --bg-main: #f8fafc;
+    --text-main: #0f172a;
+    --card-bg: rgba(255, 255, 255, 0.95);
+    --card-border: rgba(15, 23, 42, 0.08);
   }
 
   .dark {
@@ -53,19 +53,19 @@ body {
   }
 
   /* Force dark mode colors */
-  .bg-white { background-color: #0f172a !important; }
-  .bg-slate-50 { background-color: #020617 !important; }
-  .bg-slate-100 { background-color: #1e293b !important; }
-  .bg-slate-200 { background-color: #334155 !important; }
-  .border-slate-200 { border-color: #1e293b !important; }
-  .text-slate-900 { color: #ffffff !important; }
-  .text-slate-600 { color: #cbd5e1 !important; }
-  .text-slate-500 { color: #94a3b8 !important; }
+  .dark .bg-white { background-color: #0f172a !important; }
+  .dark .bg-slate-50 { background-color: #020617 !important; }
+  .dark .bg-slate-100 { background-color: #1e293b !important; }
+  .dark .bg-slate-200 { background-color: #334155 !important; }
+  .dark .border-slate-200 { border-color: #1e293b !important; }
+  .dark .text-slate-900 { color: #ffffff !important; }
+  .dark .text-slate-600 { color: #cbd5e1 !important; }
+  .dark .text-slate-500 { color: #94a3b8 !important; }
 
   /* Force dark mode for specific sections */
-  div#root:nth-of-type(2) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(3),
-  div#root:nth-of-type(2) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1),
-  div#root:nth-of-type(2) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) {
+  .dark div#root:nth-of-type(2) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(3),
+  .dark div#root:nth-of-type(2) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1),
+  .dark div#root:nth-of-type(2) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(8) > div:nth-of-type(1) > div:nth-of-type(1) {
     background: #0a0f14 !important;
     background-image: none !important;
     color: #ffffff !important;

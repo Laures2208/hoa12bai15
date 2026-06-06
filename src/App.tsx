@@ -2796,15 +2796,22 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
     
     setupListener();
     
-    // Force dark mode
-    document.documentElement.classList.add('dark');
-    
     return () => {
       if (unsubscribeSettings) unsubscribeSettings();
       if (unsubscribeConfig) unsubscribeConfig();
       if (unsubscribeAnnouncements) unsubscribeAnnouncements();
     };
   }, []);
+
+  useEffect(() => {
+    if (themeConfig.theme === 'light') {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+      document.documentElement.classList.add('dark');
+    }
+  }, [themeConfig.theme]);
 
   useEffect(() => {
     let unsubscribeScratch: () => void;
@@ -2858,25 +2865,29 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
 
   const getThemeClasses = () => {
     switch (themeConfig.theme) {
-      case 'dark-teal': return 'bg-[#0a0f14]';
-      case 'dark-blue': return 'bg-gradient-to-br from-blue-950 to-slate-950';
-      case 'dark-purple': return 'bg-gradient-to-br from-indigo-950 to-purple-950';
-      case 'dark-emerald': return 'bg-gradient-to-br from-emerald-950 to-slate-950';
-      default: return 'bg-[#0a0f14]';
+      case 'dark-teal': return 'bg-[#0a0f14] text-slate-200';
+      case 'dark-blue': return 'bg-gradient-to-br from-blue-950 to-slate-950 text-slate-200';
+      case 'dark-purple': return 'bg-gradient-to-br from-indigo-950 to-purple-950 text-slate-200';
+      case 'dark-emerald': return 'bg-gradient-to-br from-emerald-950 to-slate-950 text-slate-200';
+      case 'light': return 'bg-slate-50 text-slate-900';
+      default: return 'bg-[#0a0f14] text-slate-200';
     }
   };
 
+  const isLight = themeConfig.theme === 'light';
+
   return (
     <div className={cn(
-      "min-h-screen transition-colors duration-300 selection:bg-teal-500/30",
-      "text-slate-200 relative",
+      "min-h-screen transition-colors duration-300",
+      isLight ? "selection:bg-teal-500/20 text-slate-900" : "selection:bg-teal-500/30 text-slate-200",
+      "relative",
       getThemeClasses()
     )}>
       <GlobalBackground />
       {/* Navigation */}
       <nav className={cn(
         "fixed top-0 left-0 right-0 z-40 backdrop-blur-xl border-b transition-colors duration-300",
-        "bg-slate-900/50 border-white/5"
+        isLight ? "bg-white/80 border-slate-200" : "bg-slate-900/50 border-white/5"
       )}>
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between">
           <div className="flex flex-col items-start">
@@ -2886,7 +2897,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
               </div>
               <span className={cn(
                 "text-lg md:text-xl font-black tracking-tighter hidden sm:block",
-                "text-white"
+                isLight ? "text-slate-800" : "text-white"
               )}>CHEMISTRY THEORY & QUIZZ</span>
             </div>
           </div>
@@ -2897,7 +2908,9 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
                 onClick={() => setView('main')} 
                 className={cn(
                   "text-xs md:text-sm font-bold transition-colors hidden md:block nav-energy-btn",
-                  view === 'main' ? "text-teal-400" : "text-slate-400 hover:text-teal-400"
+                  isLight 
+                    ? (view === 'main' ? "text-teal-600" : "text-slate-600 hover:text-teal-600") 
+                    : (view === 'main' ? "text-teal-400" : "text-slate-400 hover:text-teal-400")
                 )}
               >
                 Phòng thí nghiệm
@@ -2906,8 +2919,11 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
             <button
               onClick={() => setView('calculator')}
               className={cn(
-                "text-xs md:text-sm font-bold transition-colors flex items-center gap-1 nav-energy-btn px-3 py-2 rounded-full border border-slate-700 hover:border-cyan-500/50",
-                view === 'calculator' ? "text-cyan-400 bg-cyan-500/10" : "text-slate-400 hover:text-cyan-400"
+                "text-xs md:text-sm font-bold transition-colors flex items-center gap-1 nav-energy-btn px-3 py-2 rounded-full border",
+                isLight ? "border-slate-200 hover:border-cyan-500/50" : "border-slate-700 hover:border-cyan-500/50",
+                isLight 
+                  ? (view === 'calculator' ? "text-cyan-600 bg-cyan-50" : "text-slate-600 hover:text-cyan-600") 
+                  : (view === 'calculator' ? "text-cyan-400 bg-cyan-500/10" : "text-slate-400 hover:text-cyan-400")
               )}
               title="Máy tính"
             >
@@ -2917,8 +2933,11 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
             <button 
               onClick={() => setView('theory')} 
               className={cn(
-                "relative text-xs md:text-sm font-bold transition-colors nav-energy-btn px-3 py-2 rounded-full border border-slate-700 hover:border-teal-500/50",
-                view === 'theory' ? "text-teal-400 bg-teal-500/10" : "text-slate-400 hover:text-teal-400"
+                "relative text-xs md:text-sm font-bold transition-colors nav-energy-btn px-3 py-2 rounded-full border",
+                isLight ? "border-slate-200 hover:border-teal-500/50" : "border-slate-700 hover:border-teal-500/50",
+                isLight 
+                  ? (view === 'theory' ? "text-teal-600 bg-teal-50" : "text-slate-600 hover:text-teal-600") 
+                  : (view === 'theory' ? "text-teal-400 bg-teal-500/10" : "text-slate-400 hover:text-teal-400")
               )}
             >
               <BookOpen className="w-4 h-4 md:hidden" />
@@ -2927,8 +2946,11 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
             <button 
               onClick={() => setView('announcements')} 
               className={cn(
-                "relative text-xs md:text-sm font-bold transition-colors nav-energy-btn px-3 py-2 rounded-full border border-slate-700 hover:border-teal-500/50",
-                view === 'announcements' ? "text-teal-400 bg-teal-500/10" : "text-slate-400 hover:text-teal-400"
+                "relative text-xs md:text-sm font-bold transition-colors nav-energy-btn px-3 py-2 rounded-full border",
+                isLight ? "border-slate-200 hover:border-teal-500/50" : "border-slate-700 hover:border-teal-500/50",
+                isLight 
+                  ? (view === 'announcements' ? "text-teal-600 bg-teal-50" : "text-slate-600 hover:text-teal-600") 
+                  : (view === 'announcements' ? "text-teal-400 bg-teal-500/10" : "text-slate-400 hover:text-teal-400")
               )}
             >
               <Bell className="w-4 h-4 md:hidden" />
@@ -2956,7 +2978,12 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
                 localStorage.removeItem('lkt_student_session');
                 setView('gateway');
               }}
-              className="p-2 md:px-4 md:py-2 bg-slate-800 text-slate-300 font-bold rounded-full text-xs md:text-sm hover:bg-rose-500/20 hover:text-rose-400 transition-colors border border-slate-700 hover:border-rose-500/30 flex items-center gap-2"
+              className={cn(
+                "p-2 md:px-4 md:py-2 font-bold rounded-full text-xs md:text-sm transition-colors border flex items-center gap-2",
+                isLight 
+                  ? "bg-slate-100 text-slate-750 hover:bg-rose-50 hover:text-rose-600 border-slate-250 hover:border-rose-200" 
+                  : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/30"
+              )}
               title="Đăng xuất"
             >
               <LogOut className="w-4 h-4" />
