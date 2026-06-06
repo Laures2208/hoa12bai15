@@ -6,6 +6,7 @@ import { X, Users, Clock, CheckCircle2, XCircle, ChevronDown, ChevronUp, Search,
 import { Question } from './ExamRoom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import { fixLatex } from '../utils/latexHelper';
 
@@ -418,7 +419,7 @@ export const ExamResultsModal: React.FC<ExamResultsModalProps> = ({ examId, exam
 
                                         return (
                                           <div key={idx} className="bg-slate-950 p-4 rounded-xl border border-rose-500/20">
-                                            <div className="text-sm text-slate-300 mb-3 prose prose-invert max-w-none prose-p:my-1">
+                                            <div className="text-sm text-slate-300 mb-3 prose prose-invert max-w-none prose-p:my-1 markdown-body overflow-x-auto w-full">
                                               {q.imageUrl && (
                                                 <div className="mb-3 flex justify-center">
                                                   <img 
@@ -430,7 +431,7 @@ export const ExamResultsModal: React.FC<ExamResultsModalProps> = ({ examId, exam
                                                 </div>
                                               )}
                                               <ReactMarkdown 
-                                                remarkPlugins={[remarkMath]} 
+                                                remarkPlugins={[remarkMath, remarkGfm]} 
                                                 rehypePlugins={[rehypeKatex]}
                                                 components={{
                                                   img: ({ node, ...props }) => {

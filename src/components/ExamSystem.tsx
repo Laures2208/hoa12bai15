@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import { fixLatex } from '../utils/latexHelper';
 import { cn } from '../lib/utils';
@@ -236,9 +237,11 @@ export const ExamSystem = () => {
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 mb-6 flex-1 shadow-xl">
               <div className="mb-8 text-xl leading-relaxed text-white">
                 <div className="font-bold text-teal-400 mb-2">Câu {currentStep + 1}:</div>
-                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                  {fixLatex(questions[currentStep].content)}
-                </ReactMarkdown>
+                <div className="markdown-body overflow-x-auto w-full">
+                  <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                    {fixLatex(questions[currentStep].content)}
+                  </ReactMarkdown>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4">

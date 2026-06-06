@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, Send, HelpCircle, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import { cn } from '../lib/utils';
 import 'katex/dist/katex.min.css';
@@ -430,7 +431,7 @@ export const StudentExamRoom: React.FC = () => {
             </div>
 
             {/* 3. Nội dung câu hỏi (Hỗ trợ LaTeX) */}
-            <div className="text-lg md:text-xl text-white font-medium leading-relaxed mb-8 prose prose-invert prose-teal max-w-none">
+            <div className="text-lg md:text-xl text-white font-medium leading-relaxed mb-8 prose prose-invert prose-teal max-w-none markdown-body overflow-x-auto w-full">
               {currentQuestion.imageUrl && (
                 <div className="mb-6 flex justify-center">
                   <img 
@@ -447,7 +448,7 @@ export const StudentExamRoom: React.FC = () => {
                 </div>
               )}
               <Markdown 
-                remarkPlugins={[remarkMath]} 
+                remarkPlugins={[remarkMath, remarkGfm]} 
                 rehypePlugins={[rehypeKatex]}
                 components={{
                   img: ({ node, ...props }) => {
@@ -496,9 +497,9 @@ export const StudentExamRoom: React.FC = () => {
                         )}>
                           {optionLabel}
                         </div>
-                        <div className="flex-1 pt-1 text-slate-200">
+                        <div className="flex-1 pt-1 text-slate-200 markdown-body">
                           <Markdown 
-                            remarkPlugins={[remarkMath]} 
+                            remarkPlugins={[remarkMath, remarkGfm]} 
                             rehypePlugins={[rehypeKatex]}
                             components={{
                               img: ({ node, ...props }) => {
@@ -532,9 +533,9 @@ export const StudentExamRoom: React.FC = () => {
                       <div key={sub.id} className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-start gap-3 flex-1">
                           <span className="font-bold text-teal-400 mt-1">{subLabel}.</span>
-                          <div className="text-slate-100 flex-1">
+                          <div className="text-slate-100 flex-1 markdown-body">
                             <Markdown 
-                              remarkPlugins={[remarkMath]} 
+                              remarkPlugins={[remarkMath, remarkGfm]} 
                               rehypePlugins={[rehypeKatex]}
                               components={{
                                 img: ({ node, ...props }) => {

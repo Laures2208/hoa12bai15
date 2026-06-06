@@ -6,6 +6,7 @@ import { BookOpen, Clock, Shield, Plus, X, Award, Target, TrendingUp, TrendingDo
 import { cn } from '../lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { AdvancedWordProcessor } from './AdvancedWordProcessor';
@@ -806,7 +807,7 @@ ${JSON.stringify(chunk)}`;
                                       {q.type === 'true_false' ? 'Đúng/Sai' : `Đáp án: ${q.answer}`}
                                     </span>
                                   </div>
-                                  <div className="text-white text-sm prose prose-invert prose-sm max-w-none">
+                                  <div className="text-white text-sm prose prose-invert prose-sm max-w-none markdown-body overflow-x-auto w-full">
                                     {q.imageUrl && (
                                       <div className="mb-3 flex justify-center">
                                         <img 
@@ -818,7 +819,7 @@ ${JSON.stringify(chunk)}`;
                                       </div>
                                     )}
                                     <ReactMarkdown 
-                                      remarkPlugins={[remarkMath]} 
+                                      remarkPlugins={[remarkMath, remarkGfm]} 
                                       rehypePlugins={[rehypeKatex]}
                                       components={{
                                         img: ({ node, ...props }) => {
@@ -840,9 +841,9 @@ ${JSON.stringify(chunk)}`;
                                     <div className="space-y-2">
                                       {q.subQuestions?.map((sq, sIdx) => (
                                         <div key={sq.id || sIdx} className="text-xs bg-slate-900/50 p-2 rounded-lg flex justify-between items-center gap-2">
-                                          <div className="text-slate-300 flex-1">
+                                          <div className="text-slate-300 flex-1 markdown-body">
                                             <ReactMarkdown 
-                                              remarkPlugins={[remarkMath]} 
+                                              remarkPlugins={[remarkMath, remarkGfm]} 
                                               rehypePlugins={[rehypeKatex]}
                                               components={{
                                                 img: ({ node, ...props }) => {
@@ -872,9 +873,9 @@ ${JSON.stringify(chunk)}`;
                                   ) : (
                                     <div className="grid grid-cols-2 gap-2">
                                       {q.options?.map((opt, oIdx) => (
-                                        <div key={`${q.id || 'q'}_opt_${oIdx}`} className="text-xs text-slate-400 bg-slate-900/50 p-2 rounded-lg">
+                                        <div key={`${q.id || 'q'}_opt_${oIdx}`} className="text-xs text-slate-400 bg-slate-900/50 p-2 rounded-lg markdown-body">
                                           <ReactMarkdown 
-                                            remarkPlugins={[remarkMath]} 
+                                            remarkPlugins={[remarkMath, remarkGfm]} 
                                             rehypePlugins={[rehypeKatex]}
                                             components={{
                                               img: ({ node, ...props }) => {
