@@ -270,7 +270,7 @@ export const StudentExamRoom: React.FC = () => {
 
   if (showReview) {
     return (
-      <div className="min-h-screen bg-[#0f172a] text-slate-300 font-sans">
+      <div className="min-h-screen bg-[#0f172a] text-slate-100 font-sans dark">
         <header className="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 md:px-8 py-4 flex items-center justify-between shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-4">
             <button 
@@ -336,7 +336,7 @@ export const StudentExamRoom: React.FC = () => {
 
   // 2. Giao diện Dark Mode Teal Glow
   return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-300 font-sans selection:bg-teal-500/30 selection:text-teal-200 flex flex-col">
+    <div className="min-h-screen bg-[#0f172a] text-slate-100 font-sans selection:bg-teal-500/30 selection:text-teal-200 flex flex-col dark">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 md:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-4 w-full md:w-auto">
@@ -497,7 +497,10 @@ export const StudentExamRoom: React.FC = () => {
                         )}>
                           {optionLabel}
                         </div>
-                        <div className="flex-1 pt-1 text-slate-200 markdown-body">
+                        <div className={cn(
+                          "flex-1 pt-1 markdown-body",
+                          isSelected ? "text-teal-300" : "text-slate-200"
+                        )}>
                           <Markdown 
                             remarkPlugins={[remarkMath, remarkGfm]} 
                             rehypePlugins={[rehypeKatex]}

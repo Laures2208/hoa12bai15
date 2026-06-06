@@ -1,8 +1,17 @@
 export function fixLatex(text: string): string {
   if (!text) return text;
+
+  // Fix squashed markdown tables that use inline "||" or "| |" instead of actual newlines
+  let fixed = text;
+  if (fixed.includes('|')) {
+    // 1. Replace double-pipe separators "||" with newline and pipe "|\n|"
+    fixed = fixed.replace(/\|\|/g, '|\n|');
+    // 2. Transition between separator row and regular row, e.g. ":--- | | Text"
+    fixed = fixed.replace(/(:?-+[:-]*[ \t]*\|)[ \t]*\|/g, '$1\n|');
+  }
   
   // 0. Replace \[ \] with $$ $$ and \( \) with $ $
-  let fixed = text.replace(/\\\[/g, '$$$$').replace(/\\\]/g, '$$$$');
+  fixed = fixed.replace(/\\\[/g, '$$$$').replace(/\\\]/g, '$$$$');
   fixed = fixed.replace(/\\\(/g, '$').replace(/\\\)/g, '$');
   
   // 1. Replace /ce or \/ce with \ce globally

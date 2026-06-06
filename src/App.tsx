@@ -59,6 +59,7 @@ import { VinacalCalculator } from './components/VinacalCalculator';
 import { useAntiCheat } from './hooks/useAntiCheat';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { cn } from './lib/utils';
@@ -1310,7 +1311,7 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData, studentInfo }: {
                     <span className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 font-bold shrink-0">
                       {idx + 1}
                     </span>
-                    <div className="text-xl font-bold text-slate-900 dark:text-white leading-relaxed">
+                    <div className="text-xl font-bold text-slate-900 dark:text-white leading-relaxed markdown-body overflow-x-auto w-full">
                       {q.imageUrl && (
                         <div className="mb-6 flex justify-center">
                           <img 
@@ -1322,7 +1323,7 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData, studentInfo }: {
                         </div>
                       )}
                       <ReactMarkdown 
-                        remarkPlugins={[remarkMath]} 
+                        remarkPlugins={[remarkMath, remarkGfm]} 
                         rehypePlugins={[rehypeKatex]}
                         components={{
                           img: ({ node, ...props }) => {
@@ -1358,9 +1359,9 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData, studentInfo }: {
                               "bg-slate-50 dark:bg-slate-800 border-transparent text-slate-600 dark:text-slate-400"
                             )}
                           >
-                            <div className="text-base">
+                            <div className="text-base markdown-body overflow-x-auto">
                               <ReactMarkdown 
-                                remarkPlugins={[remarkMath]} 
+                                remarkPlugins={[remarkMath, remarkGfm]} 
                                 rehypePlugins={[rehypeKatex]}
                                 components={{
                                   img: ({ node, ...props }) => {
@@ -1395,9 +1396,9 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData, studentInfo }: {
                           <div key={i} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="text-base font-medium text-slate-800 dark:text-slate-100 flex-1 flex items-start">
                               <span className="text-teal-500 font-bold mr-2 mt-1">{String.fromCharCode(97 + i)})</span>
-                              <div className="flex-1">
+                              <div className="flex-1 markdown-body overflow-x-auto">
                                 <ReactMarkdown 
-                                  remarkPlugins={[remarkMath]} 
+                                  remarkPlugins={[remarkMath, remarkGfm]} 
                                   rehypePlugins={[rehypeKatex]}
                                   components={{
                                     img: ({ node, ...props }) => {
@@ -1458,8 +1459,8 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData, studentInfo }: {
                         <AlertCircle className="w-5 h-5" />
                         Giải thích:
                       </div>
-                      <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
-                        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                      <div className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed markdown-body overflow-x-auto w-full">
+                        <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
                           {fixLatex(q.explanation || q.insight || '')}
                         </ReactMarkdown>
                       </div>
@@ -1572,7 +1573,7 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData, studentInfo }: {
               </div>
             </div>
 
-            <div className="text-2xl font-bold text-slate-900 dark:text-white mb-8 leading-relaxed">
+            <div className="text-2xl font-bold text-slate-900 dark:text-white mb-8 leading-relaxed markdown-body overflow-x-auto w-full">
               {preparedQuestions[currentStep].imageUrl && (
                 <div className="mb-6 flex justify-center">
                   <img 
@@ -1584,7 +1585,7 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData, studentInfo }: {
                 </div>
               )}
               <ReactMarkdown 
-                remarkPlugins={[remarkMath]} 
+                remarkPlugins={[remarkMath, remarkGfm]} 
                 rehypePlugins={[rehypeKatex]}
                 components={{
                   img: ({ node, ...props }) => {
@@ -1615,9 +1616,9 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData, studentInfo }: {
                       : "bg-slate-50 dark:bg-slate-800 border-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-200"
                   )}
                 >
-                  <div className="font-medium text-base">
+                  <div className="font-medium text-base markdown-body overflow-x-auto">
                     <ReactMarkdown 
-                      remarkPlugins={[remarkMath]} 
+                      remarkPlugins={[remarkMath, remarkGfm]} 
                       rehypePlugins={[rehypeKatex]}
                       components={{
                         img: ({ node, ...props }) => {
@@ -2502,9 +2503,9 @@ const PracticeExercises = () => {
                 <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0 mt-0.5">
                   {idx + 1}
                 </div>
-                <div className="text-lg font-medium text-slate-900 dark:text-white pr-8">
+                <div className="text-lg font-medium text-slate-900 dark:text-white pr-8 markdown-body overflow-x-auto w-full">
                   <ReactMarkdown 
-                    remarkPlugins={[remarkMath]} 
+                    remarkPlugins={[remarkMath, remarkGfm]} 
                     rehypePlugins={[rehypeKatex]}
                     components={{
                       img: ({ node, ...props }) => {
@@ -2541,9 +2542,9 @@ const PracticeExercises = () => {
                   className="overflow-hidden"
                 >
                   <div className="px-6 pb-6 pt-2 ml-12">
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-xl text-slate-700 dark:text-slate-300 prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-100 dark:prose-pre:bg-slate-900">
+                    <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-xl text-slate-700 dark:text-slate-300 prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-100 dark:prose-pre:bg-slate-900 markdown-body overflow-x-auto w-full">
                       <ReactMarkdown 
-                        remarkPlugins={[remarkMath]} 
+                        remarkPlugins={[remarkMath, remarkGfm]} 
                         rehypePlugins={[rehypeKatex]}
                         components={{
                           img: ({ node, ...props }) => {

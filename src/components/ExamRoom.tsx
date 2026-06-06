@@ -873,7 +873,7 @@ ${JSON.stringify(chunk)}`;
                                   ) : (
                                     <div className="grid grid-cols-2 gap-2">
                                       {q.options?.map((opt, oIdx) => (
-                                        <div key={`${q.id || 'q'}_opt_${oIdx}`} className="text-xs text-slate-400 bg-slate-900/50 p-2 rounded-lg markdown-body">
+                                        <div key={`${q.id || 'q'}_opt_${oIdx}`} className="text-xs text-slate-300 bg-slate-900/50 p-2 rounded-lg markdown-body">
                                           <ReactMarkdown 
                                             remarkPlugins={[remarkMath, remarkGfm]} 
                                             rehypePlugins={[rehypeKatex]}

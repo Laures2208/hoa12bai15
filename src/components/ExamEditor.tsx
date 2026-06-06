@@ -316,7 +316,7 @@ ${JSON.stringify(chunk)}`;
             key={`${q.id}_${index}`}
             layout
             className={cn(
-              "exam-question-card bg-slate-900/80 border rounded-3xl p-6 transition-all duration-300",
+              "bg-slate-900/80 border rounded-3xl p-6 transition-all duration-300",
               editingId === q.id ? "border-teal-500 shadow-[0_0_20px_rgba(20,184,166,0.1)]" : "border-slate-800 hover:border-slate-700"
             )}
           >
@@ -875,9 +875,9 @@ ${JSON.stringify(chunk)}`;
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {q.options.map((opt, i) => (
                       <div key={i} className={cn(
-                        "p-3 rounded-2xl border text-sm transition-all markdown-body option-text",
+                        "p-3 rounded-2xl border text-sm transition-all markdown-body font-medium",
                         q.answer === String.fromCharCode(65 + i) 
-                          ? "bg-teal-500/10 border-teal-500/30 text-teal-400 font-semibold" 
+                          ? "bg-teal-500/10 border-teal-500/30 text-teal-300" 
                           : "bg-slate-800/50 border-slate-700 text-slate-200"
                       )}>
                         <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
@@ -891,10 +891,10 @@ ${JSON.stringify(chunk)}`;
                 {q.type === 'true_false' && q.subQuestions && (
                   <div className="space-y-2">
                     {q.subQuestions.map((sq, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-slate-800/30 rounded-xl border border-slate-700/50 text-sm">
+                      <div key={i} className="flex items-center justify-between p-3 bg-slate-800/30 rounded-xl border border-slate-700/50 text-sm text-slate-200">
                         <div className="flex gap-2">
                           <span className="text-teal-400 font-bold">{sq.id})</span>
-                          <div className="markdown-body overflow-x-auto text-slate-200 font-medium">
+                          <div className="markdown-body overflow-x-auto text-slate-200">
                             <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
                               {fixLatex(sq.content || (sq as any).text || '')}
                             </ReactMarkdown>
@@ -913,7 +913,7 @@ ${JSON.stringify(chunk)}`;
 
                 {q.type === 'short_answer' && (
                   <div className="p-3 bg-slate-800/30 rounded-xl border border-slate-700/50 text-sm flex items-center gap-2">
-                    <span className="text-slate-300 font-bold">Đáp án:</span>
+                    <span className="text-slate-500 font-bold">Đáp án:</span>
                     <span className="text-teal-400 font-mono font-bold">{q.answer}</span>
                   </div>
                 )}
@@ -923,7 +923,7 @@ ${JSON.stringify(chunk)}`;
                     <Check className="w-4 h-4" />
                     Đáp án: {q.answer}
                   </div>
-                  <div className="text-slate-200 text-sm font-medium italic prose prose-invert prose-sm max-w-none markdown-body overflow-x-auto w-full">
+                  <div className="text-slate-300 text-sm italic prose prose-invert prose-xs max-w-none markdown-body overflow-x-auto w-full mt-2">
                     <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>
                       {fixLatex(q.explanation || '')}
                     </ReactMarkdown>
