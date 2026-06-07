@@ -47,7 +47,8 @@ import {
   BookOpen,
   Bell,
   HelpCircle,
-  Calculator
+  Calculator,
+  Settings
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, updateDoc, setDoc, deleteDoc, addDoc, serverTimestamp, where, getDocs, limit } from 'firebase/firestore';
 import { db } from './firebase';
@@ -1489,7 +1490,7 @@ const FinalExam = ({ setView, onOpenProfile, initialReviewData, studentInfo }: {
       examStarted && !quizFinished && "fixed inset-0 z-[100] bg-[#0a0f14] text-slate-200 overflow-y-auto"
     )}>
       <section id="exam" className={cn(
-        "px-4 max-w-4xl mx-auto relative",
+        "px-4 md:px-8 xl:px-16 w-full max-w-[1600px] mx-auto relative",
         examStarted && !quizFinished ? "py-8 min-h-screen flex flex-col" : "py-24"
       )}>
         {showFullScreenWarning && (
@@ -2692,6 +2693,7 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
   const { user } = useFirebase();
   const [view, setView] = useState<'gateway' | 'main' | 'admin' | 'exam-room' | 'announcements' | 'theory' | 'calculator'>(initialView);
   const [showProfile, setShowProfile] = useState(false);
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const [studentInfo, setStudentInfo] = useState<{ name: string, studentClass: string, grade: '10' | '11' | '12' } | null>(null);
 
   const [antiCheat22, setAntiCheat22] = useState(true);
@@ -2771,16 +2773,20 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
       });
 
       // Listen for all announcements to count unread ones
-      const qAnnouncements = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+      const qAnnouncements = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'), limit(10));
       unsubscribeAnnouncements = onSnapshot(qAnnouncements, (snapshot) => {
         const lastSeenId = localStorage.getItem('lkt_last_seen_announcement');
         let count = 0;
         let latest: any = null;
+        let found = false;
 
         snapshot.forEach((doc) => {
+          if (found) return;
           const data = { id: doc.id, ...doc.data() };
           if (!latest) latest = data;
-          if (data.id !== lastSeenId) {
+          if (data.id === lastSeenId) {
+            found = true;
+          } else {
             count++;
           }
         });
@@ -2971,25 +2977,75 @@ function MainApp({ initialView = 'gateway' }: { initialView?: 'gateway' | 'main'
             >
               Vào thi
             </button>
-            <button
-              onClick={async () => {
-                const { getAuth, signOut } = await import('firebase/auth');
-                const auth = getAuth();
-                await signOut(auth);
-                localStorage.removeItem('lkt_student_session');
-                setView('gateway');
-              }}
-              className={cn(
-                "p-2 md:px-4 md:py-2 font-bold rounded-full text-xs md:text-sm transition-colors border flex items-center gap-2",
-                isLight 
-                  ? "bg-slate-100 text-slate-750 hover:bg-rose-50 hover:text-rose-600 border-slate-250 hover:border-rose-200" 
-                  : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/30"
-              )}
-              title="Đăng xuất"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden md:inline">Đăng xuất</span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowSettingsDropdown(!showSettingsDropdown)}
+                className={cn(
+                  "p-2 md:p-2.5 font-bold rounded-full transition-colors border flex items-center justify-center nav-energy-btn",
+                  isLight 
+                    ? "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200" 
+                    : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white"
+                )}
+                title="Cài đặt"
+              >
+                <Settings className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+              
+              <AnimatePresence>
+                {showSettingsDropdown && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowSettingsDropdown(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className={cn(
+                        "absolute right-0 mt-2 w-48 rounded-xl border shadow-2xl overflow-hidden backdrop-blur-xl z-50",
+                        isLight 
+                          ? "bg-white/95 border-slate-200 shadow-slate-200/50" 
+                          : "bg-slate-900/95 border-slate-700/50 shadow-black/50"
+                      )}
+                    >
+                    <div className="p-2 space-y-1">
+                      <button
+                        onClick={() => {
+                          setShowSettingsDropdown(false);
+                          setShowProfile(true);
+                        }}
+                        className={cn(
+                          "w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-3",
+                          isLight ? "text-slate-700 hover:bg-slate-100 hover:text-teal-600" : "text-slate-300 hover:bg-slate-800 hover:text-teal-400"
+                        )}
+                      >
+                        <User className="w-4 h-4" />
+                        Hồ sơ của tôi
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setShowSettingsDropdown(false);
+                          const { getAuth, signOut } = await import('firebase/auth');
+                          const auth = getAuth();
+                          await signOut(auth);
+                          localStorage.removeItem('lkt_student_session');
+                          setView('gateway');
+                        }}
+                        className={cn(
+                          "w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-3",
+                          isLight ? "text-rose-600 hover:bg-rose-50" : "text-rose-400 hover:bg-rose-500/10"
+                        )}
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Đăng xuất
+                      </button>
+                    </div>
+                  </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </nav>

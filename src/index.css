@@ -22,7 +22,17 @@ body {
 
 .katex {
   font-size: 1.1em;
-}@import "katex/dist/katex.min.css";
+}
+
+/* Prevent equations from wrapping awkwardly */
+.markdown-body .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5em 0;
+}
+.markdown-body .katex {
+  white-space: nowrap;
+}
 
 @theme {
   --color-teal-500: #14b8a6;

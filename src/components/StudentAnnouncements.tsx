@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, serverTimestamp, limit } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
 import { MessageSquare, ThumbsUp, Send, User, Trash2, ImagePlus, Loader2, Edit2 } from 'lucide-react';
@@ -99,7 +99,7 @@ export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ stud
   const studentId = `${studentInfo.name}_${studentInfo.studentClass}`;
 
   useEffect(() => {
-    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'), limit(30));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: Announcement[] = [];
       snapshot.forEach(doc => {
@@ -128,11 +128,20 @@ export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ stud
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, 'announcement_comments'), orderBy('createdAt', 'asc'));
+    const q = query(collection(db, 'announcement_comments'), orderBy('createdAt', 'desc'), limit(100));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const commentsMap: Record<string, Comment[]> = {};
+      const allComments: Comment[] = [];
       snapshot.forEach(doc => {
-        const comment = { id: doc.id, ...doc.data() } as Comment;
+        allComments.push({ id: doc.id, ...doc.data() } as Comment);
+      });
+      // Sort oldest first for display
+      allComments.sort((a, b) => {
+        const dA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dA.getTime() - dB.getTime();
+      });
+      allComments.forEach(comment => {
         if (!commentsMap[comment.announcementId]) {
           commentsMap[comment.announcementId] = [];
         }

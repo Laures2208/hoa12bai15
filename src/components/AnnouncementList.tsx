@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { Announcement } from '../types';
 import { AnnouncementItem } from './AnnouncementItem';
 
@@ -12,7 +12,7 @@ export const AnnouncementList: React.FC<AnnouncementListProps> = ({ isAdmin }) =
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   useEffect(() => {
-    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'), limit(30));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setAnnouncements(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Announcement)));
     });

@@ -285,7 +285,7 @@ export const StudentExamRoom: React.FC = () => {
           </div>
         </header>
 
-        <main className="max-w-4xl mx-auto py-12 px-4">
+        <main className="w-full max-w-none px-4 md:px-8 xl:px-16 mx-auto py-12">
           <div className="mb-12 text-center">
             {exam.showScore === false ? (
               <>
@@ -397,7 +397,7 @@ export const StudentExamRoom: React.FC = () => {
         />
       </div>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-8 flex flex-col relative">
+      <main className="flex-1 w-full max-w-none mx-auto p-4 md:p-8 xl:px-16 flex flex-col relative">
         {showCalculator && (
           <VinacalCalculator 
             onClose={() => setShowCalculator(false)} 
