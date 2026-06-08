@@ -67,27 +67,6 @@ export const VinacalCalculator: React.FC<VinacalCalculatorProps> = ({
     }
   }, []);
 
-  // Add system log when component mounts
-  const loggedRef = useRef(false);
-  useEffect(() => {
-    if (loggedRef.current) return;
-    loggedRef.current = true;
-    const addLog = async () => {
-      try {
-        const { addDoc, collection, serverTimestamp } = await import('firebase/firestore');
-        const { db } = await import('../firebase');
-        await addDoc(collection(db, 'announcements'), {
-          title: 'Cập nhật hệ thống: Vinacal 680EX PLUS III',
-          content: 'Tái tạo hoàn hảo máy tính thực tế với đầy đủ phím và nhãn chức năng (STO, SOLVE, v.v.).',
-          author: 'Hệ thống',
-          createdAt: serverTimestamp()
-        });
-      } catch (e) {
-        console.error('Could not add announcement log', e);
-      }
-    };
-    addLog();
-  }, []);
 
   // Format expression for mathjs evaluation
   const evaluateExpressionWithVars = (expr: string, vars: Record<string, number>) => {
